@@ -44,7 +44,7 @@ branch_flag =0
 
 """Instructions"""
 
-#Ins class
+#Ins class for handling instructions
 #Consists of instruction number (ins_num), opcode, 
 #source registers (scr1, scr2), destination (memory or register) dest,
 # and optional immediate value (imm)
@@ -58,11 +58,25 @@ class Ins(object):
 		self.dest = dest
 		self.imm = imm
 
+#Obtain input file name from user
+fname = raw_input("Input file name: ")
+print fname
+
+#Open input file and start reading
+f = open(fname, 'r')
+buf = f.readline()
+print buf
+if (buf == 'REGISTERS\n'):
+	while (buf != 'MEMORY\n'):
+		buf = f.readline()
+		print buf
+
+"""
 instreg = [Ins(0, 'ADD', 'R0', 'R1', 'R2', 0)]
 instreg.append(Ins(1, 'SUB', 'R1', 'R2', 'R3', 0))
 
 for r in range(len(instreg)):
 	print instreg[r].ins_num, " ", instreg[r].opcode, " ", instreg[r].scr1, \
 		" ", instreg[r].scr2, " ", instreg[r].dest, " ", instreg[r].imm
-
-
+"""
+f.close()
