@@ -5,6 +5,7 @@ Date: 10/6/2013
 Version: 1.0"""
 
 import re
+import os
 
 """Registers"""
 REG = [0] * 32
@@ -56,6 +57,7 @@ pc = 0
 inst_count = 0
 sim_cycle = 0
 branch_flag =0
+branch_labels = dict()
 
 """Instructions"""
 
@@ -81,11 +83,19 @@ class Ins(object):
 		self.dest = 'R1'
 		self.imm = 0
 
-INSTREG = [Ins() for each in range(128)]
+	def write(self, ins_num, opcode, scr1 = 'NONE', scr2 = 'NONE', 
+				dest = 'NONE', imm = 0):
+		self.ins_num = ins_num
+		self.opcode = opcode
+				
+
+INSTREG = [Ins() for each in range(32)]
 
 #Obtain input file name from user
 fname = raw_input("Input file name: ")
 print fname
+byte_count = os.path.getsize(fname)
+print byte_count, " bytes"
 
 #Open input file and start reading
 f = open(fname, 'r')
@@ -108,20 +118,46 @@ if 'REGISTERS' in buf:
 #Initialize Memory
 print 'MEMORY'
 while not 'CODE' in buf:
-		buf = f.readline().rstrip()
-		if buf != 'CODE':
-			a = buf.split(" ")
-			addr = int(re.sub("[^0-9]", " ", a[0]))
-			value = int(re.sub("[^0-9]", " ", a[1]))
-			MEM.write(addr, value)
-			#print MEM.retrieve(addr)
+	buf = f.readline().rstrip()
+	if buf != 'CODE':
+		a = buf.split(" ")
+		addr = int(re.sub("[^0-9]", " ", a[0]))
+		value = int(re.sub("[^0-9]", " ", a[1]))
+		MEM.write(addr, value)
+		#print MEM.retrieve(addr)
 
-for r in range(len(REG)):
+print "Currently at ", f.tell(), "bytes"
+
+#Initialize instruction register
+#print 'CODE'
+r = 0
+ins_count = 1
+line_num = 1
+while (f.tell() < byte_count):  #Read to end of input file
+	buf = f.readline().strip()
+	if buf.find(':') == -1:  #No branch label read
+		a = buf.split(" ")
+	else:
+		a = buf.split(" ")
+		branch_labels[a[0]] = r
+	
+	r = r + 1
+	ins_count = ins_count + 1
+
+print branch_labels
+
+		#Load operation read
+		#if op == 'LD':
+			#INSTREG[r].write(ins_count, op, a2[1], 'NONE', a2[0], 0)
+		
+
+
+"""for r in range(len(REG)):
 	print "R", [r], " ", REG[r]
 	
 for r in range(mem_size):
 	print MEM.Slots[r].addr, " ", MEM.Slots[r].value
-
+"""
 
 """
 instreg = [Ins(0, 'ADD', 'R0', 'R1', 'R2', 0)]
@@ -131,4 +167,6 @@ for r in range(len(instreg)):
 	print instreg[r].ins_num, " ", instreg[r].opcode, " ", instreg[r].scr1, \
 		" ", instreg[r].scr2, " ", instreg[r].dest, " ", instreg[r].imm
 """
+
+
 f.close()
