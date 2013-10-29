@@ -87,8 +87,8 @@ class Ins(object):
 				dest = 'NONE', imm = 0):
 		self.ins_num = ins_num
 		self.opcode = opcode
-				
-
+			
+#Create instruction register
 INSTREG = [Ins() for each in range(32)]
 
 #Obtain input file name from user
@@ -101,7 +101,6 @@ print byte_count, " bytes"
 f = open(fname, 'r')
 buf = f.readline()
 index = 0
-print buf
 
 #Initialize Registers
 print 'REGISTERS'
@@ -113,7 +112,7 @@ if 'REGISTERS' in buf:
 			regnum = int(re.sub("[^0-9]", " ", a[0]))
 			value = int(re.sub("[^0-9]", " ", a[1]))
 			REG[regnum] = value
-			#print REG[regnum]
+			print 'R'+str(regnum), REG[regnum]
 
 #Initialize Memory
 print 'MEMORY'
@@ -124,49 +123,46 @@ while not 'CODE' in buf:
 		addr = int(re.sub("[^0-9]", " ", a[0]))
 		value = int(re.sub("[^0-9]", " ", a[1]))
 		MEM.write(addr, value)
-		#print MEM.retrieve(addr)
+		print addr, MEM.retrieve(addr)
 
-print "Currently at ", f.tell(), "bytes"
 
 #Initialize instruction register
 #print 'CODE'
-r = 0
+ins_num = 0
 ins_count = 1
-line_num = 1
+
 while (f.tell() < byte_count):  #Read to end of input file
 	buf = f.readline().strip()
+	buf = re.sub(',', '', buf)  #Gets rid of commas (makes parsing easier)
 	if buf.find(':') == -1:  #No branch label read
 		a = buf.split(" ")
-	else:
+
+	else:					 #Branch label read
 		a = buf.split(" ")
-		branch_labels[a[0]] = r
+		branch_labels[a[0]] = ins_num
+		del a[0]
+		for r in range(len(a)-1):  #Clean up instruction string
+			if '' in a:
+				del a[a.index('')]
+
+
+	print str(ins_num)+':', a
 	
-	r = r + 1
+	#Increment counters
+	ins_num = ins_num + 1
 	ins_count = ins_count + 1
 
-print branch_labels
-
-		#Load operation read
-		#if op == 'LD':
-			#INSTREG[r].write(ins_count, op, a2[1], 'NONE', a2[0], 0)
-		
-
-
-"""for r in range(len(REG)):
-	print "R", [r], " ", REG[r]
-	
-for r in range(mem_size):
-	print MEM.Slots[r].addr, " ", MEM.Slots[r].value
-"""
-
-"""
-instreg = [Ins(0, 'ADD', 'R0', 'R1', 'R2', 0)]
-instreg.append(Ins(1, 'SUB', 'R1', 'R2', 'R3', 0))
-
-for r in range(len(instreg)):
-	print instreg[r].ins_num, " ", instreg[r].opcode, " ", instreg[r].scr1, \
-		" ", instreg[r].scr2, " ", instreg[r].dest, " ", instreg[r].imm
-"""
+print '\nBranches\n', branch_labels
 
 
 f.close()
+
+
+
+def parse_ins(ins_string, ins_num):
+	
+	if ins_string[0] == 'LD':
+		pass
+	elif ins_string[0] == 'DADD':
+		pass
+	
