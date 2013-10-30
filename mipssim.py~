@@ -7,6 +7,37 @@ Version: 1.0"""
 import re
 import os
 
+#parse_ins function
+#Parses the instruction string lists read in from CODE section
+def parse_ins(ins_string, ins_num):
+	
+	if ins_string[0] == 'LD':
+		a = ins_string[2].split('(')
+		imm = a[0]
+		dest = a[1][0:2]
+		scr1 = ins_string[1]
+		instruction = Ins(ins_num, 'LD', scr1, 'NULL', dest, imm)
+
+	elif ins_string[0] == 'SD':
+		a = ins_string[2].split('(')
+		imm = a[0]
+		scr1 = a[1][0:2]
+		dest = ins_string[1]
+		instruction = Ins(ins_num, 'SD', scr1, 'NULL', dest, imm)
+		
+	elif ins_string[0] == 'DADD':
+		
+		instruction = Ins(ins_num, 'DADD', 'NULL', 'NULL', 'NULL', 0)
+
+	elif ins_string[0] == 'SUB':
+		instruction = Ins(ins_num, 'SUB', 'NULL', 'NULL', 'NULL', 0)
+
+	elif ins_string[0] == 'BNEZ':
+		instruction = Ins(ins_num, 'BNEZ', 'NULL', 'NULL', 'NULL', 0)
+
+	return instruction
+
+
 """Registers"""
 REG = [0] * 32
 
@@ -75,21 +106,25 @@ class Ins(object):
 		self.dest = dest
 		self.imm = imm
 
-	def __init__(self):
+	"""def __init__(self):
 		self.ins_num = 0
 		self.opcode = 'NONE'
 		self.scr1 = 'R0'
 		self.scr2 = 'R1'
 		self.dest = 'R1'
-		self.imm = 0
+		self.imm = 0"""
 
-	def write(self, ins_num, opcode, scr1 = 'NONE', scr2 = 'NONE', 
-				dest = 'NONE', imm = 0):
+	def write(self, ins_num, opcode, scr1 = 'NULL', scr2 = 'NULL', 
+				dest = 'NULL', imm = 0):
 		self.ins_num = ins_num
 		self.opcode = opcode
+		self.scr1 = scr1
+		self.scr2 = scr2
+		self.dest = dest
+		self.imm = imm
 			
 #Create instruction register
-INSTREG = [Ins() for each in range(32)]
+INSTREG = []
 
 #Obtain input file name from user
 fname = raw_input("Input file name: ")
@@ -141,16 +176,24 @@ while (f.tell() < byte_count):  #Read to end of input file
 		a = buf.split(" ")
 		branch_labels[a[0]] = ins_num
 		del a[0]
-		for r in range(len(a)-1):  #Clean up instruction string
+		for r in range(len(a)-1):  #Clean up spaces in instruction string
 			if '' in a:
 				del a[a.index('')]
 
 
 	print str(ins_num)+':', a
 	
+	INSTREG.append(parse_ins(a, ins_num))
+
 	#Increment counters
 	ins_num = ins_num + 1
 	ins_count = ins_count + 1
+
+
+
+for r in range(len(INSTREG)):
+	print (INSTREG[r].ins_num, INSTREG[r].opcode, INSTREG[r].scr1,
+			INSTREG[r].scr2, INSTREG[r].dest, INSTREG[r].imm)
 
 print '\nBranches\n', branch_labels
 
@@ -159,10 +202,5 @@ f.close()
 
 
 
-def parse_ins(ins_string, ins_num):
-	
-	if ins_string[0] == 'LD':
-		pass
-	elif ins_string[0] == 'DADD':
-		pass
+
 	
