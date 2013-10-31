@@ -6,6 +6,7 @@ Version: 1.0"""
 
 import re
 import os
+import string
 
 #parse_ins function
 #Parses the instruction string lists read in from CODE section
@@ -13,24 +14,46 @@ def parse_ins(ins_string, ins_num):
 	
 	if ins_string[0] == 'LD':
 		a = ins_string[2].split('(')
-		imm = a[0]
+		imm = int(a[0])
 		dest = a[1][0:2]
 		scr1 = ins_string[1]
 		instruction = Ins(ins_num, 'LD', scr1, 'NULL', dest, imm)
 
 	elif ins_string[0] == 'SD':
 		a = ins_string[2].split('(')
-		imm = a[0]
+		imm = int(a[0])
 		scr1 = a[1][0:2]
 		dest = ins_string[1]
 		instruction = Ins(ins_num, 'SD', scr1, 'NULL', dest, imm)
 		
 	elif ins_string[0] == 'DADD':
-		
-		instruction = Ins(ins_num, 'DADD', 'NULL', 'NULL', 'NULL', 0)
+		for r in range(len(ins_string)):
+			if string.find(ins_string[r],'#') == -1:
+				scr1 = ins_string[2]
+				scr2 = ins_string[3]
+				dest = ins_string[1]			
+				instruction = Ins(ins_num, 'DADD', scr1, scr2, dest, 0)
+			else:
+				scr1 = ins_string[2]
+				scr2 = 'NULL'
+				dest = ins_string[1]
+				imm = int(re.sub(r'\W+', " ", ins_string[3]))
+				instruction = Ins(ins_num, 'DADD', scr1, scr2, dest, imm)
 
 	elif ins_string[0] == 'SUB':
-		instruction = Ins(ins_num, 'SUB', 'NULL', 'NULL', 'NULL', 0)
+		for r in range(len(ins_string)):
+			if string.find(ins_string[r],'#') == -1:
+				scr1 = ins_string[2]
+				scr2 = ins_string[3]
+				dest = ins_string[1]			
+				instruction = Ins(ins_num, 'SUB', scr1, scr2, dest, 0)
+
+			else:
+				scr1 = ins_string[2]
+				scr2 = 'NULL'
+				dest = ins_string[1]
+				imm = int(re.sub(r'\W+', " ", ins_string[3]))
+				instruction = Ins(ins_num, 'SUB', scr1, scr2, dest, imm)
 
 	elif ins_string[0] == 'BNEZ':
 		instruction = Ins(ins_num, 'BNEZ', 'NULL', 'NULL', 'NULL', 0)
@@ -142,7 +165,9 @@ print 'REGISTERS'
 if 'REGISTERS' in buf:
 	while not 'MEMORY' in buf:
 		buf = f.readline().rstrip()
-		if buf != 'MEMORY':
+		if buf == '':
+			pass
+		elif buf != 'MEMORY':
 			a = buf.split(" ")
 			regnum = int(re.sub("[^0-9]", " ", a[0]))
 			value = int(re.sub("[^0-9]", " ", a[1]))
@@ -153,7 +178,9 @@ if 'REGISTERS' in buf:
 print 'MEMORY'
 while not 'CODE' in buf:
 	buf = f.readline().rstrip()
-	if buf != 'CODE':
+	if buf == '':
+		pass
+	elif buf != 'CODE':
 		a = buf.split(" ")
 		addr = int(re.sub("[^0-9]", " ", a[0]))
 		value = int(re.sub("[^0-9]", " ", a[1]))
