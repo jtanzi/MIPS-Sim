@@ -8,6 +8,8 @@ import re
 import os
 import string
 
+#---Function and Variable Declarations---
+
 #parse_ins function
 #Parses the instruction string lists read in from CODE section
 def parse_ins(ins_string, ins_num):
@@ -56,7 +58,9 @@ def parse_ins(ins_string, ins_num):
 				instruction = Ins(ins_num, 'SUB', scr1, scr2, dest, imm)
 
 	elif ins_string[0] == 'BNEZ':
-		instruction = Ins(ins_num, 'BNEZ', 'NULL', 'NULL', 'NULL', 0)
+		imm = 0
+		scr1 = ins_string[1]
+		instruction = Ins(ins_num, 'BNEZ', scr1, 'NULL', 'NULL', imm)
 
 	return instruction
 
@@ -96,21 +100,17 @@ class Memory(object):
 		return value
 
 #Contructing memory space, addresses are multiples of 8
-mem_size = 128
+mem_size = 125
 MEM = Memory(mem_size)
 for r in range(mem_size):
 	MEM.Slots[r].addr = r * 8
 
-""" TEST
-for r in range(mem_size):
-	print MEM.Slots[r].addr, " ", MEM.Slots[r].value
-	END TEST """
 
 """Flow Control Variables"""
 pc = 0
 inst_count = 0
 sim_cycle = 0
-branch_flag =0
+branch_flag = True
 branch_labels = dict()
 
 """Instructions"""
@@ -129,14 +129,6 @@ class Ins(object):
 		self.dest = dest
 		self.imm = imm
 
-	"""def __init__(self):
-		self.ins_num = 0
-		self.opcode = 'NONE'
-		self.scr1 = 'R0'
-		self.scr2 = 'R1'
-		self.dest = 'R1'
-		self.imm = 0"""
-
 	def write(self, ins_num, opcode, scr1 = 'NULL', scr2 = 'NULL', 
 				dest = 'NULL', imm = 0):
 		self.ins_num = ins_num
@@ -149,14 +141,54 @@ class Ins(object):
 #Create instruction register
 INSTREG = []
 
+#Pipelining Functions
+def IF1(ins_num):
+	#TODO
+	pass
+
+def IF2(ins_num):
+	#TODO
+	pass
+
+def ID(ins_num):
+	#TODO
+	pass
+
+def EX(ins_num):
+	#TODO
+	pass
+
+def MEM1(ins_num):
+	#TODO
+	pass
+
+def MEM2(ins_num):
+	#TODO
+	pass
+
+def MEM3(ins_num):
+	#TODO
+	pass
+
+def WB(ins_num):
+	#TODO
+	pass
+
+#---Simulation----
+
 #Obtain input file name from user
 fname = raw_input("Input file name: ")
 print fname
+oname = raw_input("Output file name: ")
+print oname
+
 byte_count = os.path.getsize(fname)
 print byte_count, " bytes"
 
-#Open input file and start reading
+#Open input and output files and start reading from input file
 f = open(fname, 'r')
+o = open(oname, 'w')
+
 buf = f.readline()
 index = 0
 
@@ -171,7 +203,8 @@ if 'REGISTERS' in buf:
 			a = buf.split(" ")
 			regnum = int(re.sub("[^0-9]", " ", a[0]))
 			value = int(re.sub("[^0-9]", " ", a[1]))
-			REG[regnum] = value
+			if regnum != 0:	 #Prevent writing to R0		
+				REG[regnum] = value
 			print 'R'+str(regnum), REG[regnum]
 
 #Initialize Memory
@@ -222,12 +255,23 @@ for r in range(len(INSTREG)):
 	print (INSTREG[r].ins_num, INSTREG[r].opcode, INSTREG[r].scr1,
 			INSTREG[r].scr2, INSTREG[r].dest, INSTREG[r].imm)
 
-print '\nBranches\n', branch_labels
+#Write to Output file
+o.write('REGISTERS\n')
+for r in range(len(REG)):
+	if REG[r] != 0:
+		wbuf = str('R'+str(r) +' ' + str(REG[r]) + '\n')
+		o.write(wbuf)
 
+o.write('MEMORY\n')
+for r in range(mem_size):
+	if MEM.retrieve(r*8) != 0:
+		wbuf = str(str(r*8) + ' ' + str(MEM.retrieve(r*8)) + '\n')
+		o.write(wbuf)
+
+#Print branch addresses for testing
+#print '\nBranches\n', branch_labels
 
 f.close()
+o.close()
 
-
-
-
-	
+#---END---	
