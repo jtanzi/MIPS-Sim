@@ -109,8 +109,8 @@ for r in range(mem_size):
 """Flow Control Variables"""
 pc = 0
 inst_count = 0
-sim_cycle = 0
-branch_flag = True
+sim_cycle = 1
+branch_flag = False
 branch_labels = dict()
 
 """Instructions"""
@@ -137,14 +137,27 @@ class Ins(object):
 		self.scr2 = scr2
 		self.dest = dest
 		self.imm = imm
+
+	def flush(self):
+		self.opcode = 'NOP'
+		self.scr1 = 'NULL'
+		self.scr2 = 'NULL'
+		self.dest = 'NULL'
+		self.imm = 0
 			
 #Create instruction register
-INSTREG = []
+PC = []
 
 #Pipelining Functions
-def IF1(ins_num):
-	#TODO
-	pass
+def IF1(ins_num, sim_cycle):
+	inst = PC[ins_num-1]
+	if branch_flag:
+		inst.flush()
+	log_str = 'c#' + str(sim_cycle) + ' I' + str(ins_num) + '-' + 'IF1' 
+	sim_cycle += 1
+
+	return log_str, sim_cycle
+		
 
 def IF2(ins_num):
 	#TODO
@@ -223,7 +236,7 @@ while not 'CODE' in buf:
 
 #Initialize instruction register
 #print 'CODE'
-ins_num = 0
+ins_num = 1
 ins_count = 1
 
 while (f.tell() < byte_count):  #Read to end of input file
@@ -234,28 +247,38 @@ while (f.tell() < byte_count):  #Read to end of input file
 
 	else:					 #Branch label read
 		a = buf.split(" ")
-		branch_labels[a[0]] = ins_num
+		branch_labels[a[0]] = ins_num-1
 		del a[0]
 		for r in range(len(a)-1):  #Clean up spaces in instruction string
 			if '' in a:
 				del a[a.index('')]
 
 
-	print str(ins_num)+':', a
+	#print str(ins_num-1)+':', a
 	
-	INSTREG.append(parse_ins(a, ins_num))
+	PC.append(parse_ins(a, ins_num))
 
 	#Increment counters
 	ins_num = ins_num + 1
 	ins_count = ins_count + 1
 
 
-
-for r in range(len(INSTREG)):
-	print (INSTREG[r].ins_num, INSTREG[r].opcode, INSTREG[r].scr1,
-			INSTREG[r].scr2, INSTREG[r].dest, INSTREG[r].imm)
+#TEST - print PC
+for r in range(len(PC)):
+	print (PC[r].ins_num, PC[r].opcode, PC[r].scr1,
+			PC[r].scr2, PC[r].dest, PC[r].imm)
 
 #Write to Output file
+ins_num = 1
+write_str = []
+stall = False
+
+for r in range(len(PC)):
+	log_str, sim_cycle = IF1(ins_num, sim_cycle)
+	write_str.append(log_str)
+	o.write(log_str + '\n')
+	ins_num += 1
+
 o.write('REGISTERS\n')
 for r in range(len(REG)):
 	if REG[r] != 0:
