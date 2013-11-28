@@ -68,7 +68,6 @@ def parse_ins(ins_string, ins_num):
 """Registers"""
 REG = [0] * 32
 
-
 """Memory"""
 
 #Slot class
@@ -121,6 +120,14 @@ branch_labels = dict()
 # and optional immediate value (imm)
 class Ins(object):
 
+	def __init__(self):
+		self.ins_num = 0
+		self.opcode = 'NOP'
+		self.scr1 = 'NULL'
+		self.scr2 = 'NULL'
+		self.dest = 'NULL'
+		self.imm = 0
+
 	def __init__(self, ins_num, opcode, scr1, scr2, dest, imm):
 		self.ins_num = ins_num
 		self.opcode = opcode
@@ -146,46 +153,74 @@ class Ins(object):
 		self.imm = 0
 			
 #Create instruction register
-PC = []
+IR = []
+PC = 0
+
+#Create pipelining registers
+IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+IF2_ID_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+ID_EX_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+EX_MEM1_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM1_MEM2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM2_MEM3_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM3_WB_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 
 #Pipelining Functions
-def IF1(ins_num, sim_cycle):
-	inst = PC[ins_num-1]
-	if branch_flag:
-		inst.flush()
-	log_str = 'c#' + str(sim_cycle) + ' I' + str(ins_num) + '-' + 'IF1' 
-	sim_cycle += 1
-
-	return log_str, sim_cycle
+def IF1(ins_num, last_inst_read_flag):
+	if not last_inst_read_flag:
+		inst = IR[ins_num/4]
+		if branch_flag:
+			inst.flush()
+		ins_num +=4
+		IF1_message = str('I' + str(inst.ins_num) + '-' + 'IF1' + ' ')
 		
+		return IF1_message, inst, ins_num
+	else:
+		pass
 
-def IF2(ins_num):
-	#TODO
-	pass
+def IF2(inst):
+	
+	
+	IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
+	#IF2_ID_reg = inst
+	return IF2_message, inst
 
-def ID(ins_num):
-	#TODO
-	pass
+def ID(inst):
+	
+	ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
+	ID_EX_reg = inst
+	return ID_message, inst
+	
+def EX(inst):
 
-def EX(ins_num):
-	#TODO
-	pass
+	EX_message = str('I' + str(inst.ins_num) + '-' + 'EX' + ' ')
+	EX_MEM1_reg = inst
+	return EX_message, inst
+	
+def MEM1(inst):
 
-def MEM1(ins_num):
-	#TODO
-	pass
+	MEM1_message = str('I' + str(inst.ins_num) + '-' + 'MEM1' + ' ')
+	MEM1_MEM2_reg = inst
+	return MEM1_message, inst
 
-def MEM2(ins_num):
-	#TODO
-	pass
+def MEM2(inst):
 
-def MEM3(ins_num):
-	#TODO
-	pass
+	MEM2_message = str('I' + str(inst.ins_num) + '-' + 'MEM2' + ' ')
+	MEM2_MEM3_reg = inst
+	return MEM2_message, inst
 
-def WB(ins_num):
-	#TODO
-	pass
+def MEM3(inst):
+
+	MEM3_message = str('I' + str(inst.ins_num) + '-' + 'MEM3' + ' ')
+	MEM3_WB_reg = inst
+	return MEM3_message, inst
+	
+def WB(inst, last_ins_num, last_inst_read_flag):
+
+	WB_message = str('I' + str(inst.ins_num) + '-' + 'WB')
+	if (last_ins_num == inst.ins_num):
+		last_inst_read_flag = True
+	return WB_message, last_inst_read_flag
 
 #---Simulation----
 
@@ -256,7 +291,7 @@ while (f.tell() < byte_count):  #Read to end of input file
 
 	#print str(ins_num-1)+':', a
 	
-	PC.append(parse_ins(a, ins_num))
+	IR.append(parse_ins(a, ins_num))
 
 	#Increment counters
 	ins_num = ins_num + 1
@@ -264,20 +299,37 @@ while (f.tell() < byte_count):  #Read to end of input file
 
 
 #TEST - print PC
-for r in range(len(PC)):
-	print (PC[r].ins_num, PC[r].opcode, PC[r].scr1,
-			PC[r].scr2, PC[r].dest, PC[r].imm)
+for r in range(len(IR)):
+	print (IR[r].ins_num, IR[r].opcode, IR[r].scr1,
+			IR[r].scr2, IR[r].dest, IR[r].imm)
 
 #Write to Output file
 ins_num = 1
-write_str = []
+last_ins_num = IR[len(IR)-1].ins_num
+last_inst_read_flag = False
+write_str = ''
 stall = False
 
-for r in range(len(PC)):
-	log_str, sim_cycle = IF1(ins_num, sim_cycle)
-	write_str.append(log_str)
-	o.write(log_str + '\n')
+while not last_inst_read_flag:
+
+	log_str = str('c#' + str(sim_cycle) +  ' ')
+
+	WB_message, last_inst_read_flag = WB(MEM3_WB_reg, last_ins_num, last_inst_read_flag)
+	MEM3_message, MEM3_WB_reg = MEM3(MEM2_MEM3_reg)
+	MEM2_message, MEM2_MEM3_reg = MEM2(MEM1_MEM2_reg)
+	MEM1_message, MEM1_MEM2_reg = MEM1(EX_MEM1_reg)
+	EX_message, EX_MEM1_reg = EX(ID_EX_reg)
+	ID_message, ID_EX_reg = ID(IF2_ID_reg)
+	IF2_message, IF2_ID_reg = IF2(IF1_IF2_reg)
+	IF1_message, IF1_IF2_reg, PC = IF1(PC, last_inst_read_flag)
+
+	write_str = (log_str + IF1_message + IF2_message + ID_message + EX_message
+				+ MEM1_message + MEM2_message + MEM3_message + WB_message)
+	
+	o.write(write_str + '\n')
+
 	ins_num += 1
+	sim_cycle += 1
 
 o.write('REGISTERS\n')
 for r in range(len(REG)):

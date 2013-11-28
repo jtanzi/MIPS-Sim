@@ -6,6 +6,9 @@ Version: 1.0"""
 
 import re
 import os
+import string
+
+#---Function and Variable Declarations---
 
 #parse_ins function
 #Parses the instruction string lists read in from CODE section
@@ -13,34 +16,57 @@ def parse_ins(ins_string, ins_num):
 	
 	if ins_string[0] == 'LD':
 		a = ins_string[2].split('(')
-		imm = a[0]
+		imm = int(a[0])
 		dest = a[1][0:2]
 		scr1 = ins_string[1]
 		instruction = Ins(ins_num, 'LD', scr1, 'NULL', dest, imm)
 
 	elif ins_string[0] == 'SD':
 		a = ins_string[2].split('(')
-		imm = a[0]
+		imm = int(a[0])
 		scr1 = a[1][0:2]
 		dest = ins_string[1]
 		instruction = Ins(ins_num, 'SD', scr1, 'NULL', dest, imm)
 		
 	elif ins_string[0] == 'DADD':
-		
-		instruction = Ins(ins_num, 'DADD', 'NULL', 'NULL', 'NULL', 0)
+		for r in range(len(ins_string)):
+			if string.find(ins_string[r],'#') == -1:
+				scr1 = ins_string[2]
+				scr2 = ins_string[3]
+				dest = ins_string[1]			
+				instruction = Ins(ins_num, 'DADD', scr1, scr2, dest, 0)
+			else:
+				scr1 = ins_string[2]
+				scr2 = 'NULL'
+				dest = ins_string[1]
+				imm = int(re.sub(r'\W+', " ", ins_string[3]))
+				instruction = Ins(ins_num, 'DADD', scr1, scr2, dest, imm)
 
 	elif ins_string[0] == 'SUB':
-		instruction = Ins(ins_num, 'SUB', 'NULL', 'NULL', 'NULL', 0)
+		for r in range(len(ins_string)):
+			if string.find(ins_string[r],'#') == -1:
+				scr1 = ins_string[2]
+				scr2 = ins_string[3]
+				dest = ins_string[1]			
+				instruction = Ins(ins_num, 'SUB', scr1, scr2, dest, 0)
+
+			else:
+				scr1 = ins_string[2]
+				scr2 = 'NULL'
+				dest = ins_string[1]
+				imm = int(re.sub(r'\W+', " ", ins_string[3]))
+				instruction = Ins(ins_num, 'SUB', scr1, scr2, dest, imm)
 
 	elif ins_string[0] == 'BNEZ':
-		instruction = Ins(ins_num, 'BNEZ', 'NULL', 'NULL', 'NULL', 0)
+		imm = 0
+		scr1 = ins_string[1]
+		instruction = Ins(ins_num, 'BNEZ', scr1, 'NULL', 'NULL', imm)
 
 	return instruction
 
 
 """Registers"""
 REG = [0] * 32
-
 
 """Memory"""
 
@@ -73,21 +99,17 @@ class Memory(object):
 		return value
 
 #Contructing memory space, addresses are multiples of 8
-mem_size = 128
+mem_size = 125
 MEM = Memory(mem_size)
 for r in range(mem_size):
 	MEM.Slots[r].addr = r * 8
 
-""" TEST
-for r in range(mem_size):
-	print MEM.Slots[r].addr, " ", MEM.Slots[r].value
-	END TEST """
 
 """Flow Control Variables"""
 pc = 0
 inst_count = 0
-sim_cycle = 0
-branch_flag =0
+sim_cycle = 1
+branch_flag = False
 branch_labels = dict()
 
 """Instructions"""
@@ -98,6 +120,14 @@ branch_labels = dict()
 # and optional immediate value (imm)
 class Ins(object):
 
+	def __init__(self):
+		self.ins_num = 0
+		self.opcode = 'NOP'
+		self.scr1 = 'NULL'
+		self.scr2 = 'NULL'
+		self.dest = 'NULL'
+		self.imm = 0
+
 	def __init__(self, ins_num, opcode, scr1, scr2, dest, imm):
 		self.ins_num = ins_num
 		self.opcode = opcode
@@ -105,14 +135,6 @@ class Ins(object):
 		self.scr2 = scr2
 		self.dest = dest
 		self.imm = imm
-
-	"""def __init__(self):
-		self.ins_num = 0
-		self.opcode = 'NONE'
-		self.scr1 = 'R0'
-		self.scr2 = 'R1'
-		self.dest = 'R1'
-		self.imm = 0"""
 
 	def write(self, ins_num, opcode, scr1 = 'NULL', scr2 = 'NULL', 
 				dest = 'NULL', imm = 0):
@@ -122,18 +144,99 @@ class Ins(object):
 		self.scr2 = scr2
 		self.dest = dest
 		self.imm = imm
+
+	def flush(self):
+		self.opcode = 'NOP'
+		self.scr1 = 'NULL'
+		self.scr2 = 'NULL'
+		self.dest = 'NULL'
+		self.imm = 0
 			
 #Create instruction register
-INSTREG = []
+IR = []
+PC = 0
+
+#Create pipelining registers
+IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+IF2_ID_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+ID_EX_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+EX_MEM1_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM1_MEM2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM2_MEM3_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM3_WB_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+
+#Pipelining Functions
+def IF1(ins_num, last_inst_read_flag):
+	if not last_inst_read_flag:
+		inst = IR[ins_num/4]
+		if branch_flag:
+			inst.flush()
+		ins_num +=4
+		IF1_message = str('I' + str(inst.ins_num) + '-' + 'IF1' + ' ')
+		
+		return IF1_message, inst, ins_num
+	else:
+		pass
+
+def IF2(inst):
+	
+	
+	IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
+	#IF2_ID_reg = inst
+	return IF2_message, inst
+
+def ID(inst):
+	
+	ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
+	ID_EX_reg = inst
+	return ID_message, inst
+	
+def EX(inst):
+
+	EX_message = str('I' + str(inst.ins_num) + '-' + 'EX' + ' ')
+	EX_MEM1_reg = inst
+	return EX_message, inst
+	
+def MEM1(inst):
+
+	MEM1_message = str('I' + str(inst.ins_num) + '-' + 'MEM1' + ' ')
+	MEM1_MEM2_reg = inst
+	return MEM1_message, inst
+
+def MEM2(inst):
+
+	MEM2_message = str('I' + str(inst.ins_num) + '-' + 'MEM2' + ' ')
+	MEM2_MEM3_reg = inst
+	return MEM2_message, inst
+
+def MEM3(inst):
+
+	MEM3_message = str('I' + str(inst.ins_num) + '-' + 'MEM3' + ' ')
+	MEM3_WB_reg = inst
+	return MEM3_message, inst
+	
+def WB(inst, last_ins_num, last_inst_read_flag):
+
+	WB_message = str('I' + str(inst.ins_num) + '-' + 'WB')
+	if (last_ins_num == inst.ins_num):
+		last_inst_read_flag = True
+	return WB_message, last_inst_read_flag
+
+#---Simulation----
 
 #Obtain input file name from user
 fname = raw_input("Input file name: ")
 print fname
+oname = raw_input("Output file name: ")
+print oname
+
 byte_count = os.path.getsize(fname)
 print byte_count, " bytes"
 
-#Open input file and start reading
+#Open input and output files and start reading from input file
 f = open(fname, 'r')
+o = open(oname, 'w')
+
 buf = f.readline()
 index = 0
 
@@ -142,18 +245,23 @@ print 'REGISTERS'
 if 'REGISTERS' in buf:
 	while not 'MEMORY' in buf:
 		buf = f.readline().rstrip()
-		if buf != 'MEMORY':
+		if buf == '':
+			pass
+		elif buf != 'MEMORY':
 			a = buf.split(" ")
 			regnum = int(re.sub("[^0-9]", " ", a[0]))
 			value = int(re.sub("[^0-9]", " ", a[1]))
-			REG[regnum] = value
+			if regnum != 0:	 #Prevent writing to R0		
+				REG[regnum] = value
 			print 'R'+str(regnum), REG[regnum]
 
 #Initialize Memory
 print 'MEMORY'
 while not 'CODE' in buf:
 	buf = f.readline().rstrip()
-	if buf != 'CODE':
+	if buf == '':
+		pass
+	elif buf != 'CODE':
 		a = buf.split(" ")
 		addr = int(re.sub("[^0-9]", " ", a[0]))
 		value = int(re.sub("[^0-9]", " ", a[1]))
@@ -163,7 +271,7 @@ while not 'CODE' in buf:
 
 #Initialize instruction register
 #print 'CODE'
-ins_num = 0
+ins_num = 1
 ins_count = 1
 
 while (f.tell() < byte_count):  #Read to end of input file
@@ -174,33 +282,71 @@ while (f.tell() < byte_count):  #Read to end of input file
 
 	else:					 #Branch label read
 		a = buf.split(" ")
-		branch_labels[a[0]] = ins_num
+		branch_labels[a[0]] = ins_num-1
 		del a[0]
 		for r in range(len(a)-1):  #Clean up spaces in instruction string
 			if '' in a:
 				del a[a.index('')]
 
 
-	print str(ins_num)+':', a
+	#print str(ins_num-1)+':', a
 	
-	INSTREG.append(parse_ins(a, ins_num))
+	IR.append(parse_ins(a, ins_num))
 
 	#Increment counters
 	ins_num = ins_num + 1
 	ins_count = ins_count + 1
 
 
+#TEST - print PC
+for r in range(len(IR)):
+	print (IR[r].ins_num, IR[r].opcode, IR[r].scr1,
+			IR[r].scr2, IR[r].dest, IR[r].imm)
 
-for r in range(len(INSTREG)):
-	print (INSTREG[r].ins_num, INSTREG[r].opcode, INSTREG[r].scr1,
-			INSTREG[r].scr2, INSTREG[r].dest, INSTREG[r].imm)
+#Write to Output file
+ins_num = 1
+last_ins_num = IR[len(IR)-1].ins_num
+last_inst_read_flag = False
+write_str = ''
+stall = False
 
-print '\nBranches\n', branch_labels
+while not last_inst_read_flag:
 
+	log_str = str('c#' + str(sim_cycle) +  ' ')
+
+	WB_message, last_inst_read_flag = WB(MEM3_WB_reg, last_ins_num, last_inst_read_flag)
+	MEM3_message, MEM3_WB_reg = MEM3(MEM2_MEM3_reg)
+	MEM2_message, MEM2_MEM3_reg = MEM2(MEM1_MEM2_reg)
+	MEM1_message, MEM1_MEM2_reg = MEM1(EX_MEM1_reg)
+	EX_message, EX_MEM1_reg = EX(ID_EX_reg)
+	ID_message, ID_EX_reg = ID(IF2_ID_reg)
+	IF2_message, IF2_ID_reg = IF2(IF1_IF2_reg)
+	IF1_message, IF1_IF2_reg, PC = IF1(PC, last_inst_read_flag)
+
+	write_str = (log_str + IF1_message + IF2_message + ID_message + EX_message
+				+ MEM1_message + MEM2_message + MEM3_message + WB_message)
+	
+	o.write(write_str + '\n')
+
+	ins_num += 1
+	sim_cycle += 1
+
+o.write('REGISTERS\n')
+for r in range(len(REG)):
+	if REG[r] != 0:
+		wbuf = str('R'+str(r) +' ' + str(REG[r]) + '\n')
+		o.write(wbuf)
+
+o.write('MEMORY\n')
+for r in range(mem_size):
+	if MEM.retrieve(r*8) != 0:
+		wbuf = str(str(r*8) + ' ' + str(MEM.retrieve(r*8)) + '\n')
+		o.write(wbuf)
+
+#Print branch addresses for testing
+#print '\nBranches\n', branch_labels
 
 f.close()
+o.close()
 
-
-
-
-	
+#---END---	
