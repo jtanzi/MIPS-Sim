@@ -10,8 +10,123 @@ import string
 
 #---Function and Variable Declarations---
 
+
+#----------------CLASSES-----------------
+"""Memory"""
+
+#Slot class
+#Contains address (addr) and value for that memory slot
+class Slot(object):  
+
+	def __init__(self):
+		self.addr = 0
+		self.value = 0
+
+
+#Memory class
+#Consists of Slot instances in array the size of desired memory space
+class Memory(object): 
+
+	def __init__(self, num_Slots):
+		self.Slots = [Slot() for each in range(num_Slots)]
+	
+	def write(self, addr, value):
+		for r in range(len(self.Slots)):
+			if self.Slots[r].addr == addr:
+				self.Slots[r].value = value
+				break
+
+	def retrieve(self, addr):
+		for r in range(len(self.Slots)):
+			if self.Slots[r].addr == addr:
+				value = self.Slots[r].value
+		return value
+
+"""Instructions"""
+
+#Ins class for handling instructions
+#Consists of instruction number (ins_num), opcode, 
+#source registers (scr1, scr2), destination (memory or register) dest,
+# and optional immediate value (imm)
+class Ins(object):
+
+	def __init__(self):
+		self.ins_num = 0
+		self.opcode = 'NOP'
+		self.scr1 = 'NULL'
+		self.scr2 = 'NULL'
+		self.dest = 'NULL'
+		self.imm = 0
+
+	def __init__(self, ins_num, opcode, scr1, scr2, dest, imm):
+		self.ins_num = ins_num
+		self.opcode = opcode
+		self.scr1 = scr1
+		self.scr2 = scr2
+		self.dest = dest
+		self.imm = imm
+
+	def write(self, ins_num, opcode, scr1 = 'NULL', scr2 = 'NULL', 
+				dest = 'NULL', imm = 0):
+		self.ins_num = ins_num
+		self.opcode = opcode
+		self.scr1 = scr1
+		self.scr2 = scr2
+		self.dest = dest
+		self.imm = imm
+
+	def flush(self):
+		self.opcode = 'NOP'
+		self.scr1 = 'NULL'
+		self.scr2 = 'NULL'
+		self.dest = 'NULL'
+		self.imm = 0
+
+
+#Contructing memory space, addresses are multiples of 8
+mem_size = 125
+MEM = Memory(mem_size)
+for r in range(mem_size):
+	MEM.Slots[r].addr = r * 8
+
+"""Registers"""
+REG = [0] * 32
+IR = []
+
+"""Flow Control Variables"""
+PC = 0
+inst_count = 0
+sim_cycle = 1
+branch_flag = False
+branch_labels = dict()
+
+#Create instruction register
+
+
+#Pipeline Registers
+IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+IF2_ID_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+ID_EX_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+EX_MEM1_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM1_MEM2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM2_MEM3_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+MEM3_WB_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+
+#Pipeline Register Change Flags
+IF1_IF2_changed = False
+IF2_ID_changed = False
+ID_EX_changed = False
+EX_MEM1_changed = False
+MEM1_MEM2_changed = False
+MEM2_MEM3_changed = False
+MEM3_WB_changed = False
+
+
+#-----------FUNCTIONS-----------------
+
 #parse_ins function
 #Parses the instruction string lists read in from CODE section
+#Returns an instruction built from the line read
 def parse_ins(ins_string, ins_num):
 	
 	if ins_string[0] == 'LD':
@@ -62,122 +177,16 @@ def parse_ins(ins_string, ins_num):
 		scr1 = ins_string[1]
 		instruction = Ins(ins_num, 'BNEZ', scr1, 'NULL', 'NULL', imm)
 
-	return instruction
+	return instruction		
 
 
-"""Registers"""
-REG = [0] * 32
+#---------------Pipeline Stages-----------------
 
-"""Memory"""
-
-#Slot class
-#Contains address (addr) and value for that memory slot
-class Slot(object):  
-
-	def __init__(self):
-		self.addr = 0
-		self.value = 0
-
-
-#Memory class
-#Consists of Slot instances in array the size of desired memory space
-class Memory(object): 
-
-	def __init__(self, num_Slots):
-		self.Slots = [Slot() for each in range(num_Slots)]
-	
-	def write(self, addr, value):
-		for r in range(len(self.Slots)):
-			if self.Slots[r].addr == addr:
-				self.Slots[r].value = value
-				break
-
-	def retrieve(self, addr):
-		for r in range(len(self.Slots)):
-			if self.Slots[r].addr == addr:
-				value = self.Slots[r].value
-		return value
-
-#Contructing memory space, addresses are multiples of 8
-mem_size = 125
-MEM = Memory(mem_size)
-for r in range(mem_size):
-	MEM.Slots[r].addr = r * 8
-
-
-"""Flow Control Variables"""
-pc = 0
-inst_count = 0
-sim_cycle = 1
-branch_flag = False
-branch_labels = dict()
-
-"""Instructions"""
-
-#Ins class for handling instructions
-#Consists of instruction number (ins_num), opcode, 
-#source registers (scr1, scr2), destination (memory or register) dest,
-# and optional immediate value (imm)
-class Ins(object):
-
-	def __init__(self):
-		self.ins_num = 0
-		self.opcode = 'NOP'
-		self.scr1 = 'NULL'
-		self.scr2 = 'NULL'
-		self.dest = 'NULL'
-		self.imm = 0
-
-	def __init__(self, ins_num, opcode, scr1, scr2, dest, imm):
-		self.ins_num = ins_num
-		self.opcode = opcode
-		self.scr1 = scr1
-		self.scr2 = scr2
-		self.dest = dest
-		self.imm = imm
-
-	def write(self, ins_num, opcode, scr1 = 'NULL', scr2 = 'NULL', 
-				dest = 'NULL', imm = 0):
-		self.ins_num = ins_num
-		self.opcode = opcode
-		self.scr1 = scr1
-		self.scr2 = scr2
-		self.dest = dest
-		self.imm = imm
-
-	def flush(self):
-		self.opcode = 'NOP'
-		self.scr1 = 'NULL'
-		self.scr2 = 'NULL'
-		self.dest = 'NULL'
-		self.imm = 0
-			
-#Create instruction register
-IR = []
-PC = 0
-
-#Create pipelining registers
-IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-IF2_ID_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-ID_EX_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-EX_MEM1_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-MEM1_MEM2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-MEM2_MEM3_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-MEM3_WB_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-
-IF1_IF2_changed = False
-IF2_ID_changed = False
-ID_EX_changed = False
-EX_MEM1_changed = False
-MEM1_MEM2_changed = False
-MEM2_MEM3_changed = False
-MEM3_WB_changed = False
-
-#Pipelining Functions
+#Instruction Fetch (IF1 & IF2)
 def IF1(ins_num, last_ins_num, last_inst_read_flag, IF1_IF2_changed, branch_flag):
 	
-	print str('ins_num/4 = ' + str(ins_num/4))
-	print str('last_ins_num = ' + str(last_ins_num))
+	#print str('ins_num/4 = ' + str(ins_num/4))
+	#print str('last_ins_num = ' + str(last_ins_num))
 	if (ins_num/4 != last_ins_num):
 		inst = IR[ins_num/4]
 		if branch_flag:
@@ -194,55 +203,122 @@ def IF1(ins_num, last_ins_num, last_inst_read_flag, IF1_IF2_changed, branch_flag
 
 	return IF1_message, inst, ins_num, IF1_IF2_changed, last_inst_read_flag
 
+
 def IF2(inst, IF1_IF2_changed):
 	if IF1_IF2_changed:
 		IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
 		IF2_ID_changed = True
 	else:
-		IF2_message = ''
-		IF2_ID_changed = False
+		if inst.opcode == 'NOP':
+			IF2_message = ''
+			IF2_ID_changed = False
+		else:
+			IF2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			IF2_ID_changed = False
 
 	return IF2_message, inst, IF2_ID_changed
 
-def ID(inst):
+#Instruction Decode (ID)
+def ID(inst, IF2_ID_changed):
+
+	if IF2_ID_changed:
+		ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
+		ID_EX_reg = inst
+		ID_EX_changed = True
+	else:
+		if inst.opcode == 'NOP':
+			ID_message = ''
+			ID_EX_changed = False
+		else:
+			ID_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			ID_EX_changed = False
+
+	return ID_message, inst, ID_EX_changed
 	
-	ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
-	ID_EX_reg = inst
-	return ID_message, inst
+#Execution (EX)
+def EX(inst, ID_EX_changed):
+
+	if ID_EX_changed:
+		EX_message = str('I' + str(inst.ins_num) + '-' + 'EX' + ' ')
+		EX_MEM1_reg = inst
+		EX_MEM1_changed = True
+	else:
+		if inst.opcode == 'NOP':
+			EX_message = ''
+			EX_MEM1_changed = False
+		else:
+			EX_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			EX_MEM1_changed = False
+
+	return EX_message, inst, EX_MEM1_changed
+
+#Memory Access (MEM1, MEM2, MEM3)
+def MEM1(inst, EX_MEM1_changed):
 	
-def EX(inst):
+	if EX_MEM1_changed:
+		MEM1_message = str('I' + str(inst.ins_num) + '-' + 'MEM1' + ' ')
+		MEM1_MEM2_reg = inst
+		MEM1_MEM2_changed = True
+	else:
+		if inst.ins_num == 'NOP':
+			MEM1_message = ''
+			MEM1_MEM2_changed = False
+		else:
+			MEM1_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			MEM1_MEM2_changed = False
 
-	EX_message = str('I' + str(inst.ins_num) + '-' + 'EX' + ' ')
-	EX_MEM1_reg = inst
-	return EX_message, inst
+	return MEM1_message, inst, MEM1_MEM2_changed
+
+def MEM2(inst, MEM1_MEM2_changed):
 	
-def MEM1(inst):
+	if MEM1_MEM2_changed:
+		MEM2_message = str('I' + str(inst.ins_num) + '-' + 'MEM2' + ' ')
+		MEM2_MEM3_reg = inst
+		MEM2_MEM3_changed = True
+	else:
+		if inst.opcode == 'NOP':
+			MEM2_message = ''
+			MEM2_MEM3_changed = False
+		else:
+			MEM2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			MEM2_MEM3_changed = False
+		
+	return MEM2_message, inst, MEM2_MEM3_changed
 
-	MEM1_message = str('I' + str(inst.ins_num) + '-' + 'MEM1' + ' ')
-	MEM1_MEM2_reg = inst
-	return MEM1_message, inst
-
-def MEM2(inst):
-
-	MEM2_message = str('I' + str(inst.ins_num) + '-' + 'MEM2' + ' ')
-	MEM2_MEM3_reg = inst
-	return MEM2_message, inst
-
-def MEM3(inst):
-
-	MEM3_message = str('I' + str(inst.ins_num) + '-' + 'MEM3' + ' ')
-	MEM3_WB_reg = inst
-	return MEM3_message, inst
+def MEM3(inst, MEM2_MEM3_changed):
 	
-def WB(inst, last_ins_num, last_inst_write_back):
+	if MEM2_MEM3_changed:
+		MEM3_message = str('I' + str(inst.ins_num) + '-' + 'MEM3' + ' ')
+		MEM3_WB_reg = inst
+		MEM3_WB_changed = True
+	else:
+		if inst.opcode == 'NOP':
+			MEM3_message = ''
+			MEM3_WB_changed = False
+		else:
+			MEM3_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			MEM3_WB_changed = False
+			
+	return MEM3_message, inst, MEM3_WB_changed
+
+#Write Back (WB)
+def WB(inst, last_ins_num, last_inst_write_back, MEM3_WB_changed):
 	
-	WB_message = str('I' + str(inst.ins_num) + '-' + 'WB')
-	if inst_ins_num == last_ins_num:
+	if inst.ins_num == last_ins_num:
 		last_inst_write_back = True
+
+	if MEM3_WB_changed:
+		WB_message = str('I' + str(inst.ins_num) + '-' + 'WB')
+	else:
+		if inst.opcode == 'NOP':
+			WB_message = ''
+		else:
+			WB_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+
 	return WB_message, last_inst_write_back
 
 
-#---Simulation----
+#----------------SIMULATION--------------------
 
 #Obtain input file name from user
 fname = raw_input("Input file name: ")
@@ -334,16 +410,26 @@ while not last_inst_write_back:
 
 	log_str = str('c#' + str(sim_cycle) +  ' ')
 
-	WB_message, last_inst_write_back = WB(MEM3_WB_reg, last_ins_num, last_inst_write_back)
-	MEM3_message, MEM3_WB_reg = MEM3(MEM2_MEM3_reg)
-	MEM2_message, MEM2_MEM3_reg = MEM2(MEM1_MEM2_reg)
-	MEM1_message, MEM1_MEM2_reg = MEM1(EX_MEM1_reg)
-	EX_message, EX_MEM1_reg = EX(ID_EX_reg)
-	ID_message, ID_EX_reg = ID(IF2_ID_reg)
+	WB_message, last_inst_write_back = WB(MEM3_WB_reg, last_ins_num, 
+		last_inst_write_back, MEM3_WB_changed)
+
+	MEM3_message, MEM3_WB_reg, MEM3_WB_changed = MEM3(MEM2_MEM3_reg,  
+		MEM2_MEM3_changed)
+
+	MEM2_message, MEM2_MEM3_reg, MEM2_MEM3_changed = MEM2(MEM1_MEM2_reg, 
+		MEM1_MEM2_changed)
+
+	MEM1_message, MEM1_MEM2_reg, MEM1_MEM2_changed = MEM1(EX_MEM1_reg, 
+		EX_MEM1_changed)
+
+	EX_message, EX_MEM1_reg, EX_MEM1_changed = EX(ID_EX_reg, ID_EX_changed)
+
+	ID_message, ID_EX_reg, ID_EX_changed = ID(IF2_ID_reg, IF2_ID_changed)
+
 	IF2_message, IF2_ID_reg, IF2_ID_changed = IF2(IF1_IF2_reg, IF1_IF2_changed)
-	IF1_message, IF1_IF2_reg, PC, IF1_IF2_changed, last_inst_read_flag = IF1(PC, 
-		last_ins_num, last_inst_read_flag, IF1_IF2_changed, branch_flag)
-	print str('last_inst_read_flag = ' + str(last_inst_read_flag))
+
+	IF1_message, IF1_IF2_reg, PC, IF1_IF2_changed, last_inst_read_flag = IF1(
+		PC, last_ins_num, last_inst_read_flag, IF1_IF2_changed, branch_flag)
 
 	write_str = (log_str + IF1_message + IF2_message + ID_message + EX_message
 				+ MEM1_message + MEM2_message + MEM3_message + WB_message)
@@ -352,13 +438,13 @@ while not last_inst_write_back:
 
 	sim_cycle += 1
 
-o.write('REGISTERS\n')
+o.write('\nREGISTERS\n')
 for r in range(len(REG)):
 	if REG[r] != 0:
 		wbuf = str('R'+str(r) +' ' + str(REG[r]) + '\n')
 		o.write(wbuf)
 
-o.write('MEMORY\n')
+o.write('\nMEMORY\n')
 for r in range(mem_size):
 	if MEM.retrieve(r*8) != 0:
 		wbuf = str(str(r*8) + ' ' + str(MEM.retrieve(r*8)) + '\n')
