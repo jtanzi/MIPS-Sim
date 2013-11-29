@@ -165,25 +165,44 @@ MEM1_MEM2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 MEM2_MEM3_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 MEM3_WB_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 
+IF1_IF2_changed = False
+IF2_ID_changed = False
+ID_EX_changed = False
+EX_MEM1_changed = False
+MEM1_MEM2_changed = False
+MEM2_MEM3_changed = False
+MEM3_WB_changed = False
+
 #Pipelining Functions
-def IF1(ins_num, last_inst_read_flag):
-	if not last_inst_read_flag:
+def IF1(ins_num, last_ins_num, last_inst_read_flag, IF1_IF2_changed, branch_flag):
+	
+	print str('ins_num/4 = ' + str(ins_num/4))
+	print str('last_ins_num = ' + str(last_ins_num))
+	if (ins_num/4 != last_ins_num):
 		inst = IR[ins_num/4]
 		if branch_flag:
 			inst.flush()
 		ins_num +=4
 		IF1_message = str('I' + str(inst.ins_num) + '-' + 'IF1' + ' ')
-		
-		return IF1_message, inst, ins_num
-	else:
-		pass
+		IF1_IF2_changed = True
 
-def IF2(inst):
-	
-	
-	IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
-	#IF2_ID_reg = inst
-	return IF2_message, inst
+	else:
+		inst = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+		IF1_message = ''
+		IF1_IF2_changed = False
+		last_inst_read_flag = True
+
+	return IF1_message, inst, ins_num, IF1_IF2_changed, last_inst_read_flag
+
+def IF2(inst, IF1_IF2_changed):
+	if IF1_IF2_changed:
+		IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
+		IF2_ID_changed = True
+	else:
+		IF2_message = ''
+		IF2_ID_changed = False
+
+	return IF2_message, inst, IF2_ID_changed
 
 def ID(inst):
 	
@@ -215,12 +234,13 @@ def MEM3(inst):
 	MEM3_WB_reg = inst
 	return MEM3_message, inst
 	
-def WB(inst, last_ins_num, last_inst_read_flag):
-
+def WB(inst, last_ins_num, last_inst_write_back):
+	
 	WB_message = str('I' + str(inst.ins_num) + '-' + 'WB')
-	if (last_ins_num == inst.ins_num):
-		last_inst_read_flag = True
-	return WB_message, last_inst_read_flag
+	if inst_ins_num == last_ins_num:
+		last_inst_write_back = True
+	return WB_message, last_inst_write_back
+
 
 #---Simulation----
 
@@ -304,31 +324,32 @@ for r in range(len(IR)):
 			IR[r].scr2, IR[r].dest, IR[r].imm)
 
 #Write to Output file
-ins_num = 1
 last_ins_num = IR[len(IR)-1].ins_num
 last_inst_read_flag = False
+last_inst_write_back = False
 write_str = ''
 stall = False
 
-while not last_inst_read_flag:
+while not last_inst_write_back:
 
 	log_str = str('c#' + str(sim_cycle) +  ' ')
 
-	WB_message, last_inst_read_flag = WB(MEM3_WB_reg, last_ins_num, last_inst_read_flag)
+	WB_message, last_inst_write_back = WB(MEM3_WB_reg, last_ins_num, last_inst_write_back)
 	MEM3_message, MEM3_WB_reg = MEM3(MEM2_MEM3_reg)
 	MEM2_message, MEM2_MEM3_reg = MEM2(MEM1_MEM2_reg)
 	MEM1_message, MEM1_MEM2_reg = MEM1(EX_MEM1_reg)
 	EX_message, EX_MEM1_reg = EX(ID_EX_reg)
 	ID_message, ID_EX_reg = ID(IF2_ID_reg)
-	IF2_message, IF2_ID_reg = IF2(IF1_IF2_reg)
-	IF1_message, IF1_IF2_reg, PC = IF1(PC, last_inst_read_flag)
+	IF2_message, IF2_ID_reg, IF2_ID_changed = IF2(IF1_IF2_reg, IF1_IF2_changed)
+	IF1_message, IF1_IF2_reg, PC, IF1_IF2_changed, last_inst_read_flag = IF1(PC, 
+		last_ins_num, last_inst_read_flag, IF1_IF2_changed, branch_flag)
+	print str('last_inst_read_flag = ' + str(last_inst_read_flag))
 
 	write_str = (log_str + IF1_message + IF2_message + ID_message + EX_message
 				+ MEM1_message + MEM2_message + MEM3_message + WB_message)
 	
 	o.write(write_str + '\n')
 
-	ins_num += 1
 	sim_cycle += 1
 
 o.write('REGISTERS\n')
