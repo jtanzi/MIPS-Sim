@@ -91,17 +91,22 @@ for r in range(mem_size):
 
 """Registers"""
 REG = [0] * 32
-IR = []
+IMEM = []  #instruction memory
+PC = 0
+IR = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+NPC = 0
 
 """Flow Control Variables"""
-PC = 0
 inst_count = 0
 sim_cycle = 1
 branch_flag = False
 branch_labels = dict()
+stall_flag = False
 
-#Create instruction register
-
+#ALU operators
+A = 0
+B = 0
+imm = 0
 
 #Pipeline Registers
 IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
@@ -179,141 +184,121 @@ def parse_ins(ins_string, ins_num):
 
 	return instruction		
 
+#Hazard checking
+
+def RAW_hazard_check(rs, rt, ID_EX_reg):
+	
+	if rs == ID_EX_reg.dest or rt == ID_EX_reg.dest:
+		return True
+	else:
+		return False
+
+def WAW_hazard_check(dest, ID_EX_reg):
+	
+	if dest == ID_EX_reg.dest:
+		return True
+	else:
+		return False
+
 
 #---------------Pipeline Stages-----------------
 
 #Instruction Fetch (IF1 & IF2)
-def IF1(ins_num, last_ins_num, last_inst_read_flag, IF1_IF2_changed, branch_flag):
-	
-	#print str('ins_num/4 = ' + str(ins_num/4))
-	#print str('last_ins_num = ' + str(last_ins_num))
-	if (ins_num/4 != last_ins_num):
-		inst = IR[ins_num/4]
-		if branch_flag:
-			inst.flush()
-		ins_num +=4
-		IF1_message = str('I' + str(inst.ins_num) + '-' + 'IF1' + ' ')
-		IF1_IF2_changed = True
+def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag):
 
+	#print str('PC = ' + str(PC) + '\n')
+	#print str('last_ins_num = ' + str(last_ins_num) + '\n')
+	if (PC/4 <= last_ins_num -1):
+		IR = IMEM[PC/4]		
+		IF1_message = str('I' + str(IR.ins_num) + '-' + 'IF1' + ' ')
 	else:
-		inst = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+		IR = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 		IF1_message = ''
-		IF1_IF2_changed = False
 		last_inst_read_flag = True
+	
+	return IF1_message, IR, PC, last_inst_read_flag
 
-	return IF1_message, inst, ins_num, IF1_IF2_changed, last_inst_read_flag
 
+def IF2(inst, PC, NPC):
+	
+	NPC = PC + 4
 
-def IF2(inst, IF1_IF2_changed):
-	if IF1_IF2_changed:
-		IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
-		IF2_ID_changed = True
+	if inst.opcode == 'NOP':
+		IF2_message = ''
 	else:
-		if inst.opcode == 'NOP':
-			IF2_message = ''
-			IF2_ID_changed = False
-		else:
-			IF2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
-			IF2_ID_changed = False
+		IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
+	
+	return IF2_message, inst, NPC 
 
-	return IF2_message, inst, IF2_ID_changed
+	#TODO Add NPC and push instruction to it
+	
 
 #Instruction Decode (ID)
-def ID(inst, IF2_ID_changed):
+def ID(inst, ID_EX_reg, stall_flag, A, B, imm):
 
-	if IF2_ID_changed:
-		ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
-		ID_EX_reg = inst
-		ID_EX_changed = True
+	if inst.opcode == 'NOP':
+		ID_message = ''
 	else:
-		if inst.opcode == 'NOP':
-			ID_message = ''
-			ID_EX_changed = False
-		else:
-			ID_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
-			ID_EX_changed = False
+		ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
 
-	return ID_message, inst, ID_EX_changed
+	return ID_message, inst, stall_flag, A, B, imm
+
 	
 #Execution (EX)
-def EX(inst, ID_EX_changed):
+def EX(inst, A, B, imm):
 
-	if ID_EX_changed:
-		EX_message = str('I' + str(inst.ins_num) + '-' + 'EX' + ' ')
-		EX_MEM1_reg = inst
-		EX_MEM1_changed = True
+	if inst.opcode == 'NOP':
+		EX_message = ''
 	else:
-		if inst.opcode == 'NOP':
-			EX_message = ''
-			EX_MEM1_changed = False
-		else:
-			EX_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
-			EX_MEM1_changed = False
+		EX_message = str('I' + str(inst.ins_num) + '-' + 'EX' + ' ')
 
-	return EX_message, inst, EX_MEM1_changed
+	return EX_message, inst
+
 
 #Memory Access (MEM1, MEM2, MEM3)
-def MEM1(inst, EX_MEM1_changed):
-	
-	if EX_MEM1_changed:
+def MEM1(inst, PC, NPC):
+
+	PC = NPC
+
+	if inst.opcode == 'NOP':
+		MEM1_message = ''
+	else:
 		MEM1_message = str('I' + str(inst.ins_num) + '-' + 'MEM1' + ' ')
-		MEM1_MEM2_reg = inst
-		MEM1_MEM2_changed = True
+
+	return MEM1_message, inst, PC
+
+
+def MEM2(inst):
+
+	if inst.opcode == 'NOP':
+		MEM2_message = ''
 	else:
-		if inst.ins_num == 'NOP':
-			MEM1_message = ''
-			MEM1_MEM2_changed = False
-		else:
-			MEM1_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
-			MEM1_MEM2_changed = False
-
-	return MEM1_message, inst, MEM1_MEM2_changed
-
-def MEM2(inst, MEM1_MEM2_changed):
-	
-	if MEM1_MEM2_changed:
 		MEM2_message = str('I' + str(inst.ins_num) + '-' + 'MEM2' + ' ')
-		MEM2_MEM3_reg = inst
-		MEM2_MEM3_changed = True
-	else:
-		if inst.opcode == 'NOP':
-			MEM2_message = ''
-			MEM2_MEM3_changed = False
-		else:
-			MEM2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
-			MEM2_MEM3_changed = False
-		
-	return MEM2_message, inst, MEM2_MEM3_changed
 
-def MEM3(inst, MEM2_MEM3_changed):
+	return MEM2_message, inst
 	
-	if MEM2_MEM3_changed:
-		MEM3_message = str('I' + str(inst.ins_num) + '-' + 'MEM3' + ' ')
-		MEM3_WB_reg = inst
-		MEM3_WB_changed = True
+
+def MEM3(inst):
+
+	if inst.opcode == 'NOP':
+		MEM3_message = ''
 	else:
-		if inst.opcode == 'NOP':
-			MEM3_message = ''
-			MEM3_WB_changed = False
-		else:
-			MEM3_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
-			MEM3_WB_changed = False
-			
-	return MEM3_message, inst, MEM3_WB_changed
+		MEM3_message = str('I' + str(inst.ins_num) + '-' + 'MEM3' + ' ')
+
+	return MEM3_message, inst
+
+
 
 #Write Back (WB)
-def WB(inst, last_ins_num, last_inst_write_back, MEM3_WB_changed):
+def WB(inst, last_ins_num, last_inst_write_back):
 	
 	if inst.ins_num == last_ins_num:
 		last_inst_write_back = True
 
-	if MEM3_WB_changed:
-		WB_message = str('I' + str(inst.ins_num) + '-' + 'WB')
-	else:
-		if inst.opcode == 'NOP':
+	if inst.opcode == 'NOP':
 			WB_message = ''
-		else:
-			WB_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+	else:
+		WB_message = str('I' + str(inst.ins_num) + '-' + 'WB')
 
 	return WB_message, last_inst_write_back
 
@@ -387,7 +372,7 @@ while (f.tell() < byte_count):  #Read to end of input file
 
 	#print str(ins_num-1)+':', a
 	
-	IR.append(parse_ins(a, ins_num))
+	IMEM.append(parse_ins(a, ins_num))
 
 	#Increment counters
 	ins_num = ins_num + 1
@@ -395,48 +380,48 @@ while (f.tell() < byte_count):  #Read to end of input file
 
 
 #TEST - print PC
-for r in range(len(IR)):
-	print (IR[r].ins_num, IR[r].opcode, IR[r].scr1,
-			IR[r].scr2, IR[r].dest, IR[r].imm)
+for r in range(len(IMEM)):
+	print (IMEM[r].ins_num, IMEM[r].opcode, IMEM[r].scr1,
+			IMEM[r].scr2, IMEM[r].dest, IMEM[r].imm)
 
 #Write to Output file
-last_ins_num = IR[len(IR)-1].ins_num
+last_ins_num = IMEM[len(IMEM)-1].ins_num
 last_inst_read_flag = False
 last_inst_write_back = False
 write_str = ''
-stall = False
+
+#TODO Prompt to run again, loop until user input is 'no'
 
 while not last_inst_write_back:
 
 	log_str = str('c#' + str(sim_cycle) +  ' ')
 
 	WB_message, last_inst_write_back = WB(MEM3_WB_reg, last_ins_num, 
-		last_inst_write_back, MEM3_WB_changed)
+		last_inst_write_back)
 
-	MEM3_message, MEM3_WB_reg, MEM3_WB_changed = MEM3(MEM2_MEM3_reg,  
-		MEM2_MEM3_changed)
+	MEM3_message, MEM3_WB_reg = MEM3(MEM2_MEM3_reg)
 
-	MEM2_message, MEM2_MEM3_reg, MEM2_MEM3_changed = MEM2(MEM1_MEM2_reg, 
-		MEM1_MEM2_changed)
+	MEM2_message, MEM2_MEM3_reg = MEM2(MEM1_MEM2_reg)
 
-	MEM1_message, MEM1_MEM2_reg, MEM1_MEM2_changed = MEM1(EX_MEM1_reg, 
-		EX_MEM1_changed)
+	MEM1_message, MEM1_MEM2_reg, PC = MEM1(EX_MEM1_reg, PC, NPC)
 
-	EX_message, EX_MEM1_reg, EX_MEM1_changed = EX(ID_EX_reg, ID_EX_changed)
+	EX_message, EX_MEM1_reg = EX(ID_EX_reg, A, B, imm)
 
-	ID_message, ID_EX_reg, ID_EX_changed = ID(IF2_ID_reg, IF2_ID_changed)
+	ID_message, ID_EX_reg, stall_flag, A, B, imm = ID(IF2_ID_reg, 
+		ID_EX_reg, stall_flag, A, B, imm)
 
-	IF2_message, IF2_ID_reg, IF2_ID_changed = IF2(IF1_IF2_reg, IF1_IF2_changed)
+	IF2_message, IF2_ID_reg, NPC = IF2(IF1_IF2_reg, PC, NPC)
 
-	IF1_message, IF1_IF2_reg, PC, IF1_IF2_changed, last_inst_read_flag = IF1(
-		PC, last_ins_num, last_inst_read_flag, IF1_IF2_changed, branch_flag)
+	IF1_message, IF1_IF2_reg, PC, last_inst_read_flag = IF1(PC, IR, 
+		last_ins_num, last_inst_read_flag, branch_flag)
 
 	write_str = (log_str + IF1_message + IF2_message + ID_message + EX_message
-				+ MEM1_message + MEM2_message + MEM3_message + WB_message)
+		+ MEM1_message + MEM2_message + MEM3_message + WB_message)
 	
 	o.write(write_str + '\n')
 
 	sim_cycle += 1
+
 
 o.write('\nREGISTERS\n')
 for r in range(len(REG)):
