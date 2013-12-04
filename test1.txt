@@ -1,10 +1,10 @@
 REGISTERS
 R1 16
-R3 42
+R13 42
 R5 8
 MEMORY 
 8 40
 16 60
 CODE
-      SUB R6, R3, R1
-      DADD R4, R5, R3
+      SUB R16, R13, #2
+      DADD R4, R5, #4

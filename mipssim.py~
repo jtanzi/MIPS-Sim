@@ -111,7 +111,9 @@ B = 0
 B_pass = 0
 imm = 0
 ALU_Output = 0
-ALU_Output_pass = 0
+ALU_Output_1 = 0
+ALU_Output_2 = 0
+ALU_Output_3 = 0
 
 #Pipeline Registers
 IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
@@ -323,29 +325,29 @@ def MEM1(inst, B, PC, NPC, LMD, ALU_Output, branch_flag, MEM):
 	return MEM1_message, inst, PC, LMD, MEM, ALU_Output
 
 
-def MEM2(inst):
+def MEM2(inst, ALU_Output):
 
 	if inst.opcode == 'NOP':
 		MEM2_message = ''
 	else:
 		MEM2_message = str('I' + str(inst.ins_num) + '-' + 'MEM2' + ' ')
 
-	return MEM2_message, inst
+	return MEM2_message, inst, ALU_Output
 	
 
-def MEM3(inst):
+def MEM3(inst, ALU_Output):
 
 	if inst.opcode == 'NOP':
 		MEM3_message = ''
 	else:
 		MEM3_message = str('I' + str(inst.ins_num) + '-' + 'MEM3' + ' ')
 
-	return MEM3_message, inst
+	return MEM3_message, inst, ALU_Output
 
 
 
 #Write Back (WB)
-def WB(inst, last_ins_num, last_inst_write_back, ALU_Output_pass, LMD, REG):
+def WB(inst, last_ins_num, last_inst_write_back, ALU_Output, LMD, REG):
 	
 	if inst.ins_num == last_ins_num:
 		last_inst_write_back = True
@@ -354,7 +356,9 @@ def WB(inst, last_ins_num, last_inst_write_back, ALU_Output_pass, LMD, REG):
 		WB_message = ''
 	else:
 		if inst.opcode == 'DADD' or inst.opcode == 'SUB':
-			REG[int(re.sub("[^0-9]", " ", inst.dest))] = ALU_Output_pass
+			print 'WB: '
+			print str('ALU_Output_pass = ' + str(ALU_Output))
+			REG[int(re.sub("[^0-9]", " ", inst.dest))] = ALU_Output
 		if inst.opcode == 'LD':
 			REG[int(re.sub("[^0-9]", " ", inst.scr2))] = LMD
 		
@@ -458,13 +462,13 @@ while not last_inst_write_back:
 	log_str = str('c#' + str(sim_cycle) +  ' ')
 
 	WB_message, last_inst_write_back, REG = WB(MEM3_WB_reg, last_ins_num, 
-		last_inst_write_back, ALU_Output_pass, LMD, REG)
+		last_inst_write_back, ALU_Output_3, LMD, REG)
 
-	MEM3_message, MEM3_WB_reg = MEM3(MEM2_MEM3_reg)
+	MEM3_message, MEM3_WB_reg, ALU_Output_3 = MEM3(MEM2_MEM3_reg, ALU_Output_2)
 
-	MEM2_message, MEM2_MEM3_reg = MEM2(MEM1_MEM2_reg)
+	MEM2_message, MEM2_MEM3_reg, ALU_Output_2 = MEM2(MEM1_MEM2_reg, ALU_Output_1)
 
-	MEM1_message, MEM1_MEM2_reg, PC, LMD, MEM, ALU_Output_pass = MEM1(EX_MEM1_reg, B_pass, PC, NPC, 
+	MEM1_message, MEM1_MEM2_reg, PC, LMD, MEM, ALU_Output_1 = MEM1(EX_MEM1_reg, B_pass, PC, NPC, 
 		LMD, ALU_Output, branch_flag, MEM)
 
 	EX_message, EX_MEM1_reg, B_pass, ALU_Output, branch_flag = EX(ID_EX_reg, NPC, A, 
