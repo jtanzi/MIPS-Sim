@@ -108,8 +108,10 @@ stall_flag = False
 #ALU operators
 A = 0
 B = 0
+B_pass = 0
 imm = 0
 ALU_Output = 0
+ALU_Output_pass = 0
 
 #Pipeline Registers
 IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
@@ -140,16 +142,17 @@ def parse_ins(ins_string, ins_num, branch_ref):
 	if ins_string[0] == 'LD':
 		a = ins_string[2].split('(')
 		imm = int(a[0])
-		dest = a[1][0:2]
-		scr1 = ins_string[1]
-		instruction = Ins(ins_num, 'LD', scr1, 'NULL', dest, imm)
+		dest = 0
+		scr2 = ins_string[1]
+		scr1 = re.sub("\)", "", a[1])
+		instruction = Ins(ins_num, 'LD', scr1, scr2, dest, imm)
 
 	elif ins_string[0] == 'SD':
 		a = ins_string[2].split('(')
 		imm = int(a[0])
 		scr1 = a[1][0:2]
-		dest = ins_string[1]
-		instruction = Ins(ins_num, 'SD', scr1, 'NULL', dest, imm)
+		scr2 = ins_string[1]
+		instruction = Ins(ins_num, 'SD', scr1, scr2, 0, imm)
 		
 	elif ins_string[0] == 'DADD':
 		for r in range(len(ins_string)):
@@ -242,8 +245,8 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 		ID_message = ''
 	else:
 		if inst.opcode == 'BNEZ':
-			print branch_labels
-			print branch_ref
+			#print branch_labels
+			#print branch_ref
 			imm = int(branch_labels[str(branch_ref[inst.ins_num] + ':')])
 			inst.imm = imm
 
@@ -251,6 +254,7 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 
 		#Decode instruction
 		if inst.scr1 != 'NULL':
+			#print str('inst.scr1 = ' + str(inst.scr1))
 			A = REG[int(re.sub("[^0-9]", " ", inst.scr1))]
 		else:
 			A = 0
@@ -259,6 +263,9 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 		else:
 			B = 0
 		imm = inst.imm
+		print 'ID: '
+		print str('A = ' + str(A))
+		print str('B = ' + str(B))
 		print str('imm = ' + str(imm))
 		
 	return ID_message, inst, stall_flag, A, B, imm, REG
@@ -270,6 +277,10 @@ def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag):
 	if inst.opcode == 'NOP':
 		EX_message = ''
 	else:
+		print 'EX: '
+		print str('A = ' + str(A))
+		print str('B = ' + str(B))
+		print str('imm = ' + str(imm))
 		if inst.opcode == 'LD' or inst.opcode == 'SD':
 			ALU_Output = A + imm
 		elif inst.opcode == 'DADD':
@@ -279,7 +290,7 @@ def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag):
 		elif inst.opcode == 'BNEZ':
 			ALU_Output = imm
 			branch_flag = (A == 0)
-		
+		print str('ALU_Output = ' + str(ALU_Output))
 		EX_message = str('I' + str(inst.ins_num) + '-' + 'EX' + ' ')
 
 	return EX_message, inst, B, ALU_Output, branch_flag
@@ -289,21 +300,27 @@ def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag):
 def MEM1(inst, B, PC, NPC, LMD, ALU_Output, branch_flag, MEM):
 
 	PC = NPC
+	print 'MEM1: '
+	print str('ALU_Output = ' + str(ALU_Output))
 
 	if inst.opcode == 'NOP':
 		MEM1_message = ''
 	else:
 		if inst.opcode == 'LD':
-			LMD = MEM.retrieve(ALU_Output * 8)
+			LMD = MEM.retrieve(ALU_Output)
+			print str('LMD = ' + str(LMD))
 		elif inst.opcode == 'SD':
-			MEM.write(ALU_Output * 8, B)
+			print str('ALU_Output = ' + str(ALU_Output))
+			print str('B = ' + str(B))
+			MEM.write(ALU_Output, B)
 		elif inst.opcode == 'BNEZ':
 			if branch_flag:
 				PC = ALU_Output * 4
+				branch_flag = False
 
 		MEM1_message = str('I' + str(inst.ins_num) + '-' + 'MEM1' + ' ')
 
-	return MEM1_message, inst, PC, LMD, MEM
+	return MEM1_message, inst, PC, LMD, MEM, ALU_Output
 
 
 def MEM2(inst):
@@ -328,7 +345,7 @@ def MEM3(inst):
 
 
 #Write Back (WB)
-def WB(inst, last_ins_num, last_inst_write_back, ALU_Output, LMD, REG):
+def WB(inst, last_ins_num, last_inst_write_back, ALU_Output_pass, LMD, REG):
 	
 	if inst.ins_num == last_ins_num:
 		last_inst_write_back = True
@@ -337,9 +354,11 @@ def WB(inst, last_ins_num, last_inst_write_back, ALU_Output, LMD, REG):
 		WB_message = ''
 	else:
 		if inst.opcode == 'DADD' or inst.opcode == 'SUB':
-			REG[int(re.sub("[^0-9]", " ", inst.dest))] = ALU_Output
+			print 'WB: '
+			print str('ALU_Output_pass = ' + str(ALU_Output_pass))
+			REG[int(re.sub("[^0-9]", " ", inst.dest))] = ALU_Output_pass
 		if inst.opcode == 'LD':
-			REG[int(re.sub("[^0-9]", " ", inst.dest))] = LMD
+			REG[int(re.sub("[^0-9]", " ", inst.scr2))] = LMD
 		
 		WB_message = str('I' + str(inst.ins_num) + '-' + 'WB')
 
@@ -441,16 +460,16 @@ while not last_inst_write_back:
 	log_str = str('c#' + str(sim_cycle) +  ' ')
 
 	WB_message, last_inst_write_back, REG = WB(MEM3_WB_reg, last_ins_num, 
-		last_inst_write_back, ALU_Output, LMD, REG)
+		last_inst_write_back, ALU_Output_pass, LMD, REG)
 
 	MEM3_message, MEM3_WB_reg = MEM3(MEM2_MEM3_reg)
 
 	MEM2_message, MEM2_MEM3_reg = MEM2(MEM1_MEM2_reg)
 
-	MEM1_message, MEM1_MEM2_reg, PC, LMD, MEM = MEM1(EX_MEM1_reg, B, PC, NPC, 
+	MEM1_message, MEM1_MEM2_reg, PC, LMD, MEM, ALU_Output_pass = MEM1(EX_MEM1_reg, B_pass, PC, NPC, 
 		LMD, ALU_Output, branch_flag, MEM)
 
-	EX_message, EX_MEM1_reg, B, ALU_Output, branch_flag= EX(ID_EX_reg, NPC, A, 
+	EX_message, EX_MEM1_reg, B_pass, ALU_Output, branch_flag = EX(ID_EX_reg, NPC, A, 
 		B, imm, ALU_Output, branch_flag)
 
 	ID_message, ID_EX_reg, stall_flag, A, B, imm, REG  = ID(IF2_ID_reg, 
