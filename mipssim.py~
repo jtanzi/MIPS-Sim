@@ -83,56 +83,7 @@ class Ins(object):
 		self.imm = 0
 
 
-#Contructing memory space, addresses are multiples of 8
-mem_size = 125
-MEM = Memory(mem_size)
-for r in range(mem_size):
-	MEM.Slots[r].addr = r * 8
-
-"""Registers"""
-REG = [0] * 32
-IMEM = []  #instruction memory
-PC = 0  #program counter
-IR = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-NPC = 0  #next program counter
-LMD = 0  #load memory data
-
-"""Flow Control Variables"""
-inst_count = 0
-sim_cycle = 1
-branch_flag = False
-branch_labels = dict()
-branch_ref = dict()
-stall_flag = False
-
-#ALU operators
-A = 0
-B = 0
-B_pass = 0
-imm = 0
-ALU_Output = 0
-ALU_Output_1 = 0
-ALU_Output_2 = 0
-ALU_Output_3 = 0
-
-#Pipeline Registers
-IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-IF2_ID_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-ID_EX_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-EX_MEM1_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-MEM1_MEM2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-MEM2_MEM3_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-MEM3_WB_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-
-#Pipeline Register Change Flags
-IF1_IF2_changed = False
-IF2_ID_changed = False
-ID_EX_changed = False
-EX_MEM1_changed = False
-MEM1_MEM2_changed = False
-MEM2_MEM3_changed = False
-MEM3_WB_changed = False
-
+#[VAR LOCATION]
 
 #-----------FUNCTIONS-----------------
 
@@ -213,11 +164,11 @@ def WAW_hazard_check(dest, ID_EX_reg):
 #---------------Pipeline Stages-----------------
 
 #Instruction Fetch (IF1 & IF2)
-def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag):
+def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag, stall_flag):
 
-	#print str('PC = ' + str(PC) + '\n')
-	#print str('last_ins_num = ' + str(last_ins_num) + '\n')
-	if (PC/4 <= last_ins_num -1):
+	if stall_flag:
+		IF1_message = str('I' + str(IR.ins_num) + '-' + 'Stall' + ' ')	
+	elif (PC/4 <= last_ins_num -1):
 		IR = IMEM[PC/4]		
 		IF1_message = str('I' + str(IR.ins_num) + '-' + 'IF1' + ' ')
 	else:
@@ -228,14 +179,17 @@ def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag):
 	return IF1_message, IR, PC, last_inst_read_flag
 
 
-def IF2(inst, PC, NPC):
+def IF2(inst, PC, NPC, stall_flag):
 	
-	NPC = PC + 4
-
-	if inst.opcode == 'NOP':
-		IF2_message = ''
+	if stall_flag:
+		IF2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
 	else:
-		IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
+		NPC = PC + 4
+
+		if inst.opcode == 'NOP':
+			IF2_message = ''
+		else:
+			IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
 	
 	return IF2_message, inst, NPC 
 	
@@ -243,7 +197,9 @@ def IF2(inst, PC, NPC):
 #Instruction Decode (ID)
 def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 
-	if inst.opcode == 'NOP':
+	if stall_flag:
+		ID_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+	elif inst.opcode == 'NOP':
 		ID_message = ''
 	else:
 		if inst.opcode == 'BNEZ':
@@ -274,7 +230,7 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 
 	
 #Execution (EX)
-def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag):
+def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag, stall_flag):
 
 	if inst.opcode == 'NOP':
 		EX_message = ''
@@ -369,143 +325,238 @@ def WB(inst, last_ins_num, last_inst_write_back, ALU_Output, LMD, REG):
 
 #----------------SIMULATION--------------------
 
-#Obtain input file name from user
-fname = raw_input("Input file name: ")
-print fname
-oname = raw_input("Output file name: ")
-print oname
 
-byte_count = os.path.getsize(fname)
-print byte_count, " bytes"
+prompt_response = ''
 
-#Open input and output files and start reading from input file
-f = open(fname, 'r')
-o = open(oname, 'w')
+while True:
 
-buf = f.readline()
-index = 0
+	#Contructing memory space, addresses are multiples of 8
+	mem_size = 125
+	MEM = Memory(mem_size)
+	for r in range(mem_size):
+		MEM.Slots[r].addr = r * 8
 
-#Initialize Registers
-print 'REGISTERS'
-if 'REGISTERS' in buf:
-	while not 'MEMORY' in buf:
+	"""Registers"""
+	REG = [0] * 32
+	IMEM = []  #instruction memory
+	PC = 0  #program counter
+	IR = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+	NPC = 0  #next program counter
+	LMD = 0  #load memory data
+	
+	"""Flow Control Variables"""
+	inst_count = 0
+	sim_cycle = 1
+	branch_flag = False
+	branch_labels = dict()
+	branch_ref = dict()
+	stall_flag = False
+
+	#ALU operators
+	A = 0
+	B = 0
+	B_pass = 0
+	imm = 0
+	ALU_Output = 0
+	ALU_Output_1 = 0
+	ALU_Output_2 = 0
+	ALU_Output_3 = 0
+
+	#Pipeline Registers
+	IF1_IF2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+	IF2_ID_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+	ID_EX_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+	EX_MEM1_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+	MEM1_MEM2_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+	MEM2_MEM3_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+	MEM3_WB_reg = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+
+	#Pipeline Register Change Flags
+	IF1_IF2_changed = False
+	IF2_ID_changed = False
+	ID_EX_changed = False
+	EX_MEM1_changed = False
+	MEM1_MEM2_changed = False
+	MEM2_MEM3_changed = False
+	MEM3_WB_changed = False
+
+	#Obtain input file name from user
+	fname = raw_input("Input file name: ")
+	print fname
+	oname = raw_input("Output file name: ")
+	print oname
+
+	byte_count = os.path.getsize(fname)
+	print byte_count, " bytes"
+
+	#Open input and output files and start reading from input file	
+	f = open(fname, 'r')
+	o = open(oname, 'w')
+
+	buf = f.readline()
+	index = 0
+
+	#Initialize Registers
+	print 'REGISTERS'
+	if 'REGISTERS' in buf:
+		while not 'MEMORY' in buf:
+			buf = f.readline().rstrip()
+			if buf == '':
+				pass
+			elif buf != 'MEMORY':
+				a = buf.split(" ")
+				regnum = int(re.sub("[^0-9]", " ", a[0]))
+				value = int(re.sub("[^0-9]", " ", a[1]))
+				if regnum != 0:	 #Prevent writing to R0		
+					REG[regnum] = value
+				print 'R'+str(regnum), REG[regnum]
+
+	#Initialize Memory
+	print 'MEMORY'
+	while not 'CODE' in buf:
 		buf = f.readline().rstrip()
 		if buf == '':
 			pass
-		elif buf != 'MEMORY':
+		elif buf != 'CODE':
 			a = buf.split(" ")
-			regnum = int(re.sub("[^0-9]", " ", a[0]))
+			addr = int(re.sub("[^0-9]", " ", a[0]))
 			value = int(re.sub("[^0-9]", " ", a[1]))
-			if regnum != 0:	 #Prevent writing to R0		
-				REG[regnum] = value
-			print 'R'+str(regnum), REG[regnum]
-
-#Initialize Memory
-print 'MEMORY'
-while not 'CODE' in buf:
-	buf = f.readline().rstrip()
-	if buf == '':
-		pass
-	elif buf != 'CODE':
-		a = buf.split(" ")
-		addr = int(re.sub("[^0-9]", " ", a[0]))
-		value = int(re.sub("[^0-9]", " ", a[1]))
-		MEM.write(addr, value)
-		print addr, MEM.retrieve(addr)
+			MEM.write(addr, value)
+			print addr, MEM.retrieve(addr)
 
 
-#Initialize instruction register
-#print 'CODE'
-ins_num = 1
-ins_count = 1
+	#Initialize instruction register
+	#print 'CODE'
+	ins_num = 1
+	ins_count = 1
 
-while (f.tell() < byte_count):  #Read to end of input file
-	buf = f.readline().strip()
-	print buf
-	buf = re.sub(',', '', buf)  #Gets rid of commas (makes parsing easier)
-	if buf.find(':') == -1:  #No branch label read
-		a = buf.split(" ")
+	while (f.tell() < byte_count):  #Read to end of input file
+		buf = f.readline().strip()
+		print buf
+		buf = re.sub(',', '', buf)  #Gets rid of commas (makes parsing easier)
+		if buf.find(':') == -1:  #No branch label read
+			a = buf.split(" ")
 
-	else:					 #Branch label read
-		a = buf.split(" ")
-		branch_labels[a[0]] = ins_num-1
-		del a[0]
-		for r in range(len(a)-1):  #Clean up spaces in instruction string
-			if '' in a:
-				del a[a.index('')]
+		else:					 #Branch label read
+			a = buf.split(" ")
+			branch_labels[a[0]] = ins_num-1
+			del a[0]
+			for r in range(len(a)-1):  #Clean up spaces in instruction string
+				if '' in a:
+					del a[a.index('')]
 
-	#print branch_labels
+		#print branch_labels
 
-	next_inst, branch_ref = parse_ins(a, ins_num, branch_ref)
-	IMEM.append(next_inst)
+		next_inst, branch_ref = parse_ins(a, ins_num, branch_ref)
+		IMEM.append(next_inst)
 
-	#Increment counters
-	ins_num = ins_num + 1
-	ins_count = ins_count + 1
+		#Increment counters
+		ins_num = ins_num + 1
+		ins_count = ins_count + 1
 
+	"""
+	#TEST - print PC
+	for r in range(len(IMEM)):
+		print (IMEM[r].ins_num, IMEM[r].opcode, IMEM[r].scr1,
+				IMEM[r].scr2, IMEM[r].dest, IMEM[r].imm)
+	"""
 
-#TEST - print PC
-for r in range(len(IMEM)):
-	print (IMEM[r].ins_num, IMEM[r].opcode, IMEM[r].scr1,
-			IMEM[r].scr2, IMEM[r].dest, IMEM[r].imm)
+	#Write to Output file
+	last_ins_num = IMEM[len(IMEM)-1].ins_num
+	last_inst_read_flag = False
+	last_inst_write_back = False
+	write_str = ''
 
-#Write to Output file
-last_ins_num = IMEM[len(IMEM)-1].ins_num
-last_inst_read_flag = False
-last_inst_write_back = False
-write_str = ''
-
-#TODO Prompt to run again, loop until user input is 'no'
-
-while not last_inst_write_back:
-
-	log_str = str('c#' + str(sim_cycle) +  ' ')
-
-	WB_message, last_inst_write_back, REG = WB(MEM3_WB_reg, last_ins_num, 
-		last_inst_write_back, ALU_Output_3, LMD, REG)
-
-	MEM3_message, MEM3_WB_reg, ALU_Output_3 = MEM3(MEM2_MEM3_reg, ALU_Output_2)
-
-	MEM2_message, MEM2_MEM3_reg, ALU_Output_2 = MEM2(MEM1_MEM2_reg, ALU_Output_1)
-
-	MEM1_message, MEM1_MEM2_reg, PC, LMD, MEM, ALU_Output_1 = MEM1(EX_MEM1_reg, B_pass, PC, NPC, 
-		LMD, ALU_Output, branch_flag, MEM)
-
-	EX_message, EX_MEM1_reg, B_pass, ALU_Output, branch_flag = EX(ID_EX_reg, NPC, A, 
-		B, imm, ALU_Output, branch_flag)
-
-	ID_message, ID_EX_reg, stall_flag, A, B, imm, REG  = ID(IF2_ID_reg, 
-		ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG)
-
-	IF2_message, IF2_ID_reg, NPC = IF2(IF1_IF2_reg, PC, NPC)
-
-	IF1_message, IF1_IF2_reg, PC, last_inst_read_flag = IF1(PC, IR, 
-		last_ins_num, last_inst_read_flag, branch_flag)
-
-	write_str = (log_str + IF1_message + IF2_message + ID_message + EX_message
-		+ MEM1_message + MEM2_message + MEM3_message + WB_message)
 	
-	o.write(write_str + '\n')
+	#TODO Prompt to run again, loop until user input is 'no'
 
-	sim_cycle += 1
+	while not last_inst_write_back:
+		print str('sim_cycle = ' + str(sim_cycle))
+
+		log_str = str('c#' + str(sim_cycle) +  ' ')
+	
+		#Write Back Stage
+		WB_message, last_inst_write_back, REG = WB(MEM3_WB_reg, last_ins_num, 
+			last_inst_write_back, ALU_Output_3, LMD, REG)
+
+		#MEM3 Stage
+		MEM3_message, MEM3_WB_reg, ALU_Output_3 = MEM3(MEM2_MEM3_reg, ALU_Output_2)
+
+		#Forward from MEM2
+		#ALU_Output = ALU_Output2
+	
+		#MEM2 Stage
+		MEM2_message, MEM2_MEM3_reg, ALU_Output_2 = MEM2(MEM1_MEM2_reg, ALU_Output_1)
+	
+		#Forward from MEM1
+		#ALU_Output = ALU_Output1
+
+		#MEM1 Stage
+		MEM1_message, MEM1_MEM2_reg, PC, LMD, MEM, ALU_Output_1 = MEM1(EX_MEM1_reg, B_pass, PC, NPC, 
+			LMD, ALU_Output, branch_flag, MEM)
+		"""
+		X = ID_EX_reg.scr1
+		Y = ID_EX_reg.scr2
+		T = EX_MEM1_reg.dest
+		if X == T and X != 'NULL':
+			A = ALU_Output
+		elif Y == T and Y != 'NULL':
+			B = ALU_Output		
+		"""
+		#Execution Stage
+		EX_message, EX_MEM1_reg, B_pass, ALU_Output, branch_flag = EX(ID_EX_reg, NPC, A, 
+			B, imm, ALU_Output, branch_flag, stall_flag)
+
+		#Instruction Decode Stage
+		ID_message, ID_EX_reg, stall_flag, A, B, imm, REG  = ID(IF2_ID_reg, 
+			ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG)
+		"""
+		#Hazard Check
+		X = ID_EX_reg.scr1
+		Y = ID_EX_reg.scr2
+		T = IF2_ID_reg.scr1
+		U = IF2_ID_reg.scr2
+		if (X == T or X == U or Y == T or Y == U) and (X != 0 or Y != 0):
+			stall_flag = True
+		else:
+			staff_flag = False
+		"""
+		#Instruction Fetch 2 Stage
+		IF2_message, IF2_ID_reg, NPC = IF2(IF1_IF2_reg, PC, NPC, stall_flag)
+
+		#Instruction Fetch 1 Stage
+		IF1_message, IF1_IF2_reg, PC, last_inst_read_flag = IF1(PC, IR, 
+			last_ins_num, last_inst_read_flag, branch_flag, stall_flag)
+
+		#Write to output file
+		write_str = (log_str + IF1_message + IF2_message + ID_message + EX_message
+			+ MEM1_message + MEM2_message + MEM3_message + WB_message)
+	
+		o.write(write_str + '\n')
+
+		sim_cycle += 1
 
 
-o.write('\nREGISTERS\n')
-for r in range(len(REG)):
-	if REG[r] != 0:
-		wbuf = str('R'+str(r) +' ' + str(REG[r]) + '\n')
-		o.write(wbuf)
+	o.write('\nREGISTERS\n')
+	for r in range(len(REG)):
+		if REG[r] != 0:
+			wbuf = str('R'+str(r) +' ' + str(REG[r]) + '\n')
+			o.write(wbuf)
 
-o.write('\nMEMORY\n')
-for r in range(mem_size):
-	if MEM.retrieve(r*8) != 0:
-		wbuf = str(str(r*8) + ' ' + str(MEM.retrieve(r*8)) + '\n')
-		o.write(wbuf)
+	o.write('\nMEMORY\n')
+	for r in range(mem_size):
+		if MEM.retrieve(r*8) != 0:
+			wbuf = str(str(r*8) + ' ' + str(MEM.retrieve(r*8)) + '\n')
+			o.write(wbuf)
 
 #Print branch addresses for testing
 #print '\nBranches\n', branch_labels
 
-f.close()
-o.close()
+	f.close()
+	o.close()
 
+	prompt_response = raw_input("Do you want to execute another program? (y/n)")
+	print prompt_response
+	if prompt_response == 'n':
+		break
 #---END---	
