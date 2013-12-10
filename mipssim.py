@@ -167,7 +167,7 @@ def WAW_hazard_check(dest, ID_EX_reg):
 #Instruction Fetch (IF1 & IF2)
 def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag, stall_flag):
 		
-	if (PC/4 <= last_ins_num -1):
+	if (PC/4 <= last_ins_num - 1):
 		IR = IMEM[PC/4]
 		if branch_flag:
 			#IR.flush()
@@ -187,7 +187,7 @@ def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag, stall_flag):
 	return IF1_message, IR, PC, last_inst_read_flag
 
 
-def IF2(inst, PC, NPC, stall_flag):
+def IF2(inst, PC, NPC, stall_flag, branch_flag):
 	
 	if stall_flag:
 		IF2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
@@ -208,7 +208,7 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 	if stall_flag:
 		ID_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
 	elif inst.opcode == 'NOP':
-		ID_message = ''
+		ID_message = ''		
 	else:
 		if inst.opcode == 'BNEZ':
 			#print branch_labels
@@ -524,12 +524,6 @@ while True:
 			REG[int(re.sub("[^0-9]", " ", ID_EX_reg.scr2))] = LMD
 			REG_ready[int(re.sub("[^0-9]", " ", ID_EX_reg.scr2))] = True
 
-		#if branch_flag:
-		#	ID_EX_reg.flush()
-			#IF2_ID_reg.flush()
-			#IF1_IF2_reg.flush()
-
-
 
 		#Hazard Check
 		if ID_EX_reg.scr1 != 'NULL':
@@ -545,8 +539,10 @@ while True:
 		if (REG_ready[rs] and
 			REG_ready[rt]):
 			stall_flag = False
-		else:
+		elif ID_EX_reg.ins_num > 1:
 			stall_flag = True
+
+		print str('stall_flag bef EX = ' + str(stall_flag))
 
 		#Execution Stage
 		if stall_flag:
@@ -558,7 +554,18 @@ while True:
 				REG_ready[int(re.sub("[^0-9]", " ", ID_EX_reg.scr2))] = True
 		else:
 			EX_message, EX_MEM1_reg, B_pass, ALU_Output, branch_flag, REG_ready = EX(ID_EX_reg, 
-				NPC, A, B, imm, ALU_Output, branch_flag, stall_flag, REG_ready)			
+				NPC, A, B, imm, ALU_Output, branch_flag, stall_flag, REG_ready)
+
+		#print str('IF1_IF2_reg.ins_num = ' + str(IF1_IF2_reg.ins_num))
+		if ID_EX_reg.dest != 'NULL' and ID_EX_reg.ins_num > 1:
+			REG_ready[int(re.sub("[^0-9]", " ", ID_EX_reg.dest))] = False
+		
+		if branch_flag:
+			#ID_EX_reg.flush()
+			IF2_ID_reg.flush()
+			#IF1_IF2_reg.flush()
+			branch_flag = False
+		
 		
 		#Instruction Decode Stage
 		if stall_flag:
@@ -572,9 +579,9 @@ while True:
 
 		#Instruction Fetch 2 Stage
 		if stall_flag:
-			IF2_message, IF1_IF2_reg, NPC = IF2(IF1_IF2_reg, PC, NPC, stall_flag)
+			IF2_message, IF1_IF2_reg, NPC = IF2(IF1_IF2_reg, PC, NPC, stall_flag, branch_flag)
 		else:
-			IF2_message, IF2_ID_reg, NPC = IF2(IF1_IF2_reg, PC, NPC, stall_flag)
+			IF2_message, IF2_ID_reg, NPC = IF2(IF1_IF2_reg, PC, NPC, stall_flag, branch_flag)
 
 		#Instruction Fetch 1 Stage
 		if stall_flag:
@@ -584,8 +591,8 @@ while True:
 			IF1_message, IF1_IF2_reg, PC, last_inst_read_flag = IF1(PC, IR, 
 				last_ins_num, last_inst_read_flag, branch_flag, stall_flag)
 
-		if IF1_IF2_reg.dest != 'NULL':
-			REG_ready[int(re.sub("[^0-9]", " ", IF1_IF2_reg.dest))] = False
+		#if IF1_IF2_reg.dest != 'NULL':
+		#	REG_ready[int(re.sub("[^0-9]", " ", IF1_IF2_reg.dest))] = False
 		
 
 		#Write to output file
