@@ -405,4 +405,377 @@ I1-WB
 LD R1 R2 NULL
 ALU_Output = 16
 LMD = 60
-last_inst_
+last_inst_write_back = False
+
+MEM3:
+I2-MEM3 
+DADD R2 R3 R4
+ALU_Output = 102
+
+MEM2:
+I2-MEM2 
+DADD R2 R3 R4
+ALU_Output = 16
+
+MEM1:
+I3-MEM1 
+SD R1 R4 NULL
+B = 102
+PC = 24
+NPC = 24
+LMD = 60
+ALU_Output = 16
+
+EX:
+I4-EX 
+BNEZ R4 NULL NULL
+A = 60
+B = 0
+imm = 5
+ALU_Output = 5
+
+ID:
+
+NOP NULL NULL NULL
+A = 60
+B = 0
+imm = 5
+
+IF2:
+I6-IF2 
+DADD R1 R3 R1
+NPC: 28
+
+IF1:
+
+NOP NULL NULL NULL
+PC = 24
+
+sim_cycle = 9
+************
+
+WB:
+I2-WB
+DADD R2 R3 R4
+ALU_Output = 102
+LMD = 60
+last_inst_write_back = False
+
+MEM3:
+I2-MEM3 
+DADD R2 R3 R4
+ALU_Output = 16
+
+MEM2:
+I3-MEM2 
+SD R1 R4 NULL
+ALU_Output = 16
+
+MEM1:
+I4-MEM1 
+BNEZ R4 NULL NULL
+B = 0
+PC = 28
+NPC = 28
+LMD = 60
+ALU_Output = 5
+
+EX:
+
+NOP NULL NULL NULL
+A = 60
+B = 0
+imm = 5
+ALU_Output = 5
+
+ID:
+I6-ID 
+DADD R1 R3 R1
+A = 16
+B = 42
+imm = 0
+
+IF2:
+
+NOP NULL NULL NULL
+NPC: 32
+
+IF1:
+
+NOP NULL NULL NULL
+PC = 28
+
+sim_cycle = 10
+************
+
+WB:
+I2-WB
+DADD R2 R3 R4
+ALU_Output = 16
+LMD = 60
+last_inst_write_back = False
+
+MEM3:
+I3-MEM3 
+SD R1 R4 NULL
+ALU_Output = 16
+
+MEM2:
+I4-MEM2 
+BNEZ R4 NULL NULL
+ALU_Output = 5
+
+MEM1:
+
+NOP NULL NULL NULL
+B = 0
+PC = 32
+NPC = 32
+LMD = 60
+ALU_Output = 5
+
+EX:
+I6-EX 
+DADD R1 R3 R1
+A = 16
+B = 42
+imm = 0
+ALU_Output = 58
+
+ID:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+
+IF2:
+
+NOP NULL NULL NULL
+NPC: 36
+
+IF1:
+
+NOP NULL NULL NULL
+PC = 32
+
+sim_cycle = 11
+************
+
+WB:
+I3-WB
+SD R1 R4 NULL
+ALU_Output = 16
+LMD = 60
+last_inst_write_back = False
+
+MEM3:
+I4-MEM3 
+BNEZ R4 NULL NULL
+ALU_Output = 5
+
+MEM2:
+
+NOP NULL NULL NULL
+ALU_Output = 5
+
+MEM1:
+I6-MEM1 
+DADD R1 R3 R1
+B = 42
+PC = 36
+NPC = 36
+LMD = 60
+ALU_Output = 58
+
+EX:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+ALU_Output = 58
+
+ID:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+
+IF2:
+
+NOP NULL NULL NULL
+NPC: 40
+
+IF1:
+
+NOP NULL NULL NULL
+PC = 36
+
+sim_cycle = 12
+************
+
+WB:
+I4-WB
+BNEZ R4 NULL NULL
+ALU_Output = 5
+LMD = 60
+last_inst_write_back = False
+
+MEM3:
+
+NOP NULL NULL NULL
+ALU_Output = 5
+
+MEM2:
+I6-MEM2 
+DADD R1 R3 R1
+ALU_Output = 58
+
+MEM1:
+
+NOP NULL NULL NULL
+B = 42
+PC = 40
+NPC = 40
+LMD = 60
+ALU_Output = 58
+
+EX:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+ALU_Output = 58
+
+ID:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+
+IF2:
+
+NOP NULL NULL NULL
+NPC: 44
+
+IF1:
+
+NOP NULL NULL NULL
+PC = 40
+
+sim_cycle = 13
+************
+
+WB:
+
+NOP NULL NULL NULL
+ALU_Output = 5
+LMD = 60
+last_inst_write_back = False
+
+MEM3:
+I6-MEM3 
+DADD R1 R3 R1
+ALU_Output = 58
+
+MEM2:
+
+NOP NULL NULL NULL
+ALU_Output = 58
+
+MEM1:
+
+NOP NULL NULL NULL
+B = 42
+PC = 44
+NPC = 44
+LMD = 60
+ALU_Output = 58
+
+EX:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+ALU_Output = 58
+
+ID:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+
+IF2:
+
+NOP NULL NULL NULL
+NPC: 48
+
+IF1:
+
+NOP NULL NULL NULL
+PC = 44
+
+sim_cycle = 14
+************
+
+WB:
+I6-WB
+DADD R1 R3 R1
+ALU_Output = 58
+LMD = 60
+last_inst_write_back = True
+
+MEM3:
+
+NOP NULL NULL NULL
+ALU_Output = 58
+
+MEM2:
+
+NOP NULL NULL NULL
+ALU_Output = 58
+
+MEM1:
+
+NOP NULL NULL NULL
+B = 42
+PC = 48
+NPC = 48
+LMD = 60
+ALU_Output = 58
+
+EX:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+ALU_Output = 58
+
+ID:
+
+NOP NULL NULL NULL
+A = 16
+B = 42
+imm = 0
+
+IF2:
+
+NOP NULL NULL NULL
+NPC: 52
+
+IF1:
+
+NOP NULL NULL NULL
+PC = 48
+Do you want to execute another program? (y/n)n
+n
+]0;jtanzi@localhost:~/Documents/git/MIPS-Sim]7;file://localhost.localdomain/home/jtanzi/Documents/git/MIPS-Sim[jtanzi@localhost MIPS-Sim]$ python mipssim.py [9Pinput.txtpython mipssim.py [Kexit[Kgit push origin mastercommit -m "Updated control and data hazards"
+[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cadd *[K
+]0;jtanzi@localhost:~/Documents/git/MIPS-Sim]7;file://localhost.localdomain/home/jtanzi/Documents/git/MIPS-Sim[jtanzi@localhost MIPS-
