@@ -1,0 +1,408 @@
+Script started on Tue 10 Dec 2013 10:16:57 AM CST
+]0;jtanzi@localhost:~/Documents/git/MIPS-Sim]7;file://localhost.localdomain/home/jtanzi/Documents/git/MIPS-Sim[?1034h[jtanzi@localhost MIPS-Sim]$ python mipssim.py 
+Input file name: input.txt
+input.txt
+Output file name: output.txt
+output.txt
+REGISTERS
+R0 0
+R1 16
+R3 42
+R5 8
+MEMORY
+8 40
+16 60
+LD R2, 0(R1)
+DADD R4, R2, R3
+SD R4, 0(R1)
+BNEZ R4, NEXT
+DADD R2, R1, #8
+NEXT: DADD R1, R1, R3
+
+sim_cycle = 1
+************
+
+WB:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+LMD = 0
+last_inst_write_back = False
+
+MEM3:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM2:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM1:
+
+NOP NULL NULL NULL
+B = 0
+PC = 0
+NPC = 0
+LMD = 0
+ALU_Output = 0
+
+EX:
+
+NOP NULL NULL NULL
+A = 0
+B = 0
+imm = 0
+ALU_Output = 0
+
+ID:
+
+NOP NULL NULL NULL
+A = 0
+B = 0
+imm = 0
+
+IF2:
+
+NOP NULL NULL NULL
+NPC: 4
+
+IF1:
+I1-IF1 
+LD R1 R2 NULL
+PC = 0
+
+sim_cycle = 2
+************
+
+WB:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+LMD = 0
+last_inst_write_back = False
+
+MEM3:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM2:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM1:
+
+NOP NULL NULL NULL
+B = 0
+PC = 4
+NPC = 4
+LMD = 0
+ALU_Output = 0
+
+EX:
+
+NOP NULL NULL NULL
+A = 0
+B = 0
+imm = 0
+ALU_Output = 0
+
+ID:
+
+NOP NULL NULL NULL
+A = 0
+B = 0
+imm = 0
+
+IF2:
+I1-IF2 
+LD R1 R2 NULL
+NPC: 8
+
+IF1:
+I2-IF1 
+DADD R2 R3 R4
+PC = 4
+
+sim_cycle = 3
+************
+
+WB:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+LMD = 0
+last_inst_write_back = False
+
+MEM3:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM2:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM1:
+
+NOP NULL NULL NULL
+B = 0
+PC = 8
+NPC = 8
+LMD = 0
+ALU_Output = 0
+
+EX:
+
+NOP NULL NULL NULL
+A = 0
+B = 0
+imm = 0
+ALU_Output = 0
+
+ID:
+I1-ID 
+LD R1 R2 NULL
+A = 16
+B = 0
+imm = 0
+
+IF2:
+I2-IF2 
+DADD R2 R3 R4
+NPC: 12
+
+IF1:
+I3-IF1 
+SD R1 R4 NULL
+PC = 8
+
+sim_cycle = 4
+************
+
+WB:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+LMD = 0
+last_inst_write_back = False
+
+MEM3:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM2:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM1:
+
+NOP NULL NULL NULL
+B = 0
+PC = 12
+NPC = 12
+LMD = 0
+ALU_Output = 0
+
+EX:
+I1-EX 
+LD R1 R2 NULL
+A = 16
+B = 0
+imm = 0
+ALU_Output = 16
+
+ID:
+I2-ID 
+DADD R2 R3 R4
+A = 0
+B = 42
+imm = 0
+
+IF2:
+I3-IF2 
+SD R1 R4 NULL
+NPC: 16
+
+IF1:
+I4-IF1 
+BNEZ R4 NULL NULL
+PC = 12
+
+sim_cycle = 5
+************
+
+WB:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+LMD = 0
+last_inst_write_back = False
+
+MEM3:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM2:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM1:
+I1-MEM1 
+LD R1 R2 NULL
+B = 0
+PC = 16
+NPC = 16
+LMD = 60
+ALU_Output = 16
+
+EX:
+I2-EX 
+DADD R2 R3 R4
+A = 60
+B = 42
+imm = 0
+ALU_Output = 102
+
+ID:
+I3-ID 
+SD R1 R4 NULL
+A = 16
+B = 102
+imm = 0
+
+IF2:
+I4-IF2 
+BNEZ R4 NULL NULL
+NPC: 20
+
+IF1:
+I5-IF1 
+DADD R1 NULL R2
+PC = 16
+
+sim_cycle = 6
+************
+
+WB:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+LMD = 60
+last_inst_write_back = False
+
+MEM3:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+
+MEM2:
+I1-MEM2 
+LD R1 R2 NULL
+ALU_Output = 16
+
+MEM1:
+I2-MEM1 
+DADD R2 R3 R4
+B = 42
+PC = 20
+NPC = 20
+LMD = 60
+ALU_Output = 102
+
+EX:
+I3-EX 
+SD R1 R4 NULL
+A = 16
+B = 102
+imm = 0
+ALU_Output = 16
+
+ID:
+I4-Stall 
+BNEZ R4 NULL NULL
+A = 16
+B = 102
+imm = 0
+
+IF2:
+I5-Stall 
+DADD R1 NULL R2
+NPC: 20
+
+IF1:
+I6-Stall 
+NOP NULL NULL NULL
+PC = 19
+
+sim_cycle = 7
+************
+
+WB:
+
+NOP NULL NULL NULL
+ALU_Output = 0
+LMD = 60
+last_inst_write_back = False
+
+MEM3:
+I1-MEM3 
+LD R1 R2 NULL
+ALU_Output = 16
+
+MEM2:
+I2-MEM2 
+DADD R2 R3 R4
+ALU_Output = 102
+
+MEM1:
+I2-MEM1 
+DADD R2 R3 R4
+B = 102
+PC = 20
+NPC = 20
+LMD = 60
+ALU_Output = 16
+
+EX:
+I3-EX 
+SD R1 R4 NULL
+A = 16
+B = 102
+imm = 0
+ALU_Output = 16
+
+ID:
+I4-ID 
+BNEZ R4 NULL NULL
+A = 102
+B = 0
+imm = 5
+
+IF2:
+I5-IF2 
+DADD R1 NULL R2
+NPC: 24
+
+IF1:
+I6-IF1 
+DADD R1 R3 R1
+PC = 20
+
+sim_cycle = 8
+************
+
+WB:
+I1-WB
+LD R1 R2 NULL
+ALU_Output = 16
+LMD = 60
+last_inst_
