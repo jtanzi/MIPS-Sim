@@ -165,23 +165,33 @@ def WAW_hazard_check(dest, ID_EX_reg):
 #---------------Pipeline Stages-----------------
 
 #Instruction Fetch (IF1 & IF2)
-def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag, stall_flag):
-		
-	if (PC/4 <= last_ins_num - 1):
+def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag, stall_flag, prev_branch):
+			
+	if branch_flag:
+		IR = Ins(0, 'NOP', 'NULL', 'NULL', 'NULL', 0)
+		IF1_message = ''
+		branch_flag = False
+		prev_branch = True	
+	elif (PC/4 <= last_ins_num - 1) and not prev_branch:
 		IR = IMEM[PC/4]
-		if branch_flag:
-			IR.flush()
-			branch_flag = False
-
+		
 		if stall_flag:
 			IF1_message = str('I' + str(IR.ins_num) + '-' + 'Stall' + ' ')
-			PC = PC - 1
-			IR = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+			#PC = PC - 4
+			#IR = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 			#TODO
 			stall_flag = False
 		else:	
 			IF1_message = str('I' + str(IR.ins_num) + '-' + 'IF1' + ' ')
+	elif prev_branch:
+		print 'F1'
+		if (PC/4 <= last_ins_num -1):
+			IR = IMEM[PC/4]
+		IF1_message = str('I' + str(IR.ins_num) + '-' + 'IF1' + ' ')
+		last_inst_read_flag = False
+		prev_branch = False
 	else:  #Last instruction read
+		print 'F2'
 		IR = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 		IF1_message = ''
 		last_inst_read_flag = True
@@ -192,15 +202,18 @@ def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag, stall_flag):
 	print IF1_message
 	print str(IR.opcode + " " + IR.scr1 + " " + IR.scr2 + " " + IR.dest)
 	print str('PC = ' + str(PC))
-	return IF1_message, IR, PC, last_inst_read_flag
+	print str('last_inst_read_flag = ' + str(last_inst_read_flag))
+	print str('prev_branch = ' + str(prev_branch))
+	return IF1_message, IR, PC, last_inst_read_flag, prev_branch
 
 
 def IF2(inst, PC, NPC, stall_flag, branch_flag):
 	
 	if branch_flag:
-		inst.flush()
-
-	if stall_flag:
+		#inst.flush()
+		inst =  Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+		IF2_message = ''
+	elif stall_flag:
 		IF2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
 	else:
 		NPC = PC + 4
@@ -223,15 +236,16 @@ def IF2(inst, PC, NPC, stall_flag, branch_flag):
 def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 
 	if branch_flag:
-		inst.flush()
-	if stall_flag:
+		#inst.flush()
+		inst = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+		ID_message = ''
+	elif stall_flag:
 		ID_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+
 	elif inst.opcode == 'NOP':
 		ID_message = ''		
 	else:
 		if inst.opcode == 'BNEZ':
-			#print branch_labels
-			#print branch_ref
 			imm = int(branch_labels[str(branch_ref[inst.ins_num] + ':')])
 			inst.imm = imm
 
@@ -262,8 +276,14 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 #Execution (EX)
 def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag, stall_flag, REG_ready):
 
+	#branch_flag = False
+
 	if stall_flag:
 		EX_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+	elif branch_flag:
+		#inst.flush()
+		inst = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
+		EX_message = ''
 	elif inst.opcode == 'NOP':
 		EX_message = ''
 	else:
@@ -276,6 +296,7 @@ def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag, stall_flag, REG_ready):
 		elif inst.opcode == 'BNEZ':
 			ALU_Output = imm
 			branch_flag = (A != 0)
+			#PC = ALU_Output * 4
 
 		#Data Forwarding
 		if inst.dest != 'NULL':
@@ -301,8 +322,10 @@ def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag, stall_flag, REG_ready):
 def MEM1(inst, B, PC, NPC, LMD, ALU_Output, branch_flag, MEM):
 
 	PC = NPC
+
 	if stall_flag:
-		inst.flush()
+		#inst.flush()
+		inst = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 	if inst.opcode == 'NOP':
 		MEM1_message = ''
 	else:
@@ -314,8 +337,9 @@ def MEM1(inst, B, PC, NPC, LMD, ALU_Output, branch_flag, MEM):
 		elif inst.opcode == 'BNEZ':
 			if branch_flag:
 				PC = ALU_Output * 4
-				#branch_flag = False
 
+		branch_flag = False
+		
 		MEM1_message = str('I' + str(inst.ins_num) + '-' + 'MEM1' + ' ')
 
 	#Uncomment for debugging
@@ -329,7 +353,7 @@ def MEM1(inst, B, PC, NPC, LMD, ALU_Output, branch_flag, MEM):
 	print str('LMD = ' + str(LMD))
 	print str('ALU_Output = ' + str(ALU_Output))
 	print str('branch_flag = ' + str(branch_flag))
-	return MEM1_message, inst, PC, LMD, MEM, ALU_Output
+	return MEM1_message, inst, PC, LMD, MEM, ALU_Output, branch_flag
 
 
 def MEM2(inst, ALU_Output):
@@ -421,6 +445,7 @@ while True:
 	branch_labels = dict()
 	branch_ref = dict()
 	stall_flag = False
+	prev_branch = False
 
 	#ALU operators
 	A = 0
@@ -563,9 +588,8 @@ while True:
 			#REG[int(re.sub("[^0-9]", " ", ID_EX_reg.scr2))] = LMD
 
 		#MEM1 Stage
-		MEM1_message, MEM1_MEM2_reg, PC, LMD, MEM, ALU_Output_1 = MEM1(EX_MEM1_reg, B_pass, PC, NPC, 
+		MEM1_message, MEM1_MEM2_reg, PC, LMD, MEM, ALU_Output_1, branch_flag = MEM1(EX_MEM1_reg, B_pass, PC, NPC, 
 			LMD, ALU_Output, branch_flag, MEM)
-
 
 		#Forward from MEM1
 		if MEM1_MEM2_reg.scr2 == ID_EX_reg.scr1 and ID_EX_reg.scr1 != 'NULL':
@@ -614,10 +638,7 @@ while True:
 
 		#print str('IF1_IF2_reg.ins_num = ' + str(IF1_IF2_reg.ins_num))
 		if ID_EX_reg.dest != 'NULL' and ID_EX_reg.ins_num > 1:
-			REG_ready[int(re.sub("[^0-9]", " ", ID_EX_reg.dest))] = False
-		
-
-		
+			REG_ready[int(re.sub("[^0-9]", " ", ID_EX_reg.dest))] = False		
 		
 		#Instruction Decode Stage
 		if stall_flag:
@@ -629,12 +650,6 @@ while True:
 			if ID_EX_reg.opcode == 'LD':
 				REG_ready[int(re.sub("[^0-9]", " ", ID_EX_reg.scr2))] = False
 
-		if branch_flag:
-			#ID_EX_reg.flush()
-			IF2_ID_reg.flush()
-			#IF1_IF2_reg.flush()
-			#branch_flag = False
-
 		#Instruction Fetch 2 Stage
 		if stall_flag:
 			IF2_message, IF1_IF2_reg, NPC = IF2(IF1_IF2_reg, PC, NPC, stall_flag, branch_flag)
@@ -643,11 +658,11 @@ while True:
 
 		#Instruction Fetch 1 Stage
 		if stall_flag:
-			IF1_message, IR, PC, last_inst_read_flag = IF1(PC, IR, 
-				last_ins_num, last_inst_read_flag, branch_flag, stall_flag)
+			IF1_message, IR, PC, last_inst_read_flag, prev_branch = IF1(PC, IR, 
+				last_ins_num, last_inst_read_flag, branch_flag, stall_flag, prev_branch)
 		else:
-			IF1_message, IF1_IF2_reg, PC, last_inst_read_flag = IF1(PC, IR, 
-				last_ins_num, last_inst_read_flag, branch_flag, stall_flag)
+			IF1_message, IF1_IF2_reg, PC, last_inst_read_flag, prev_branch = IF1(PC, IR, 
+				last_ins_num, last_inst_read_flag, branch_flag, stall_flag, prev_branch)
 
 
 		#Write to output file
