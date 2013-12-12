@@ -10,5 +10,5 @@ CODE
 LOOP: LD R2, 0(R1)
       DADD R4, R2, R3
       SD R4, 0(R1)
-	 SUB R1, R1, #4
-	 BNEZ R1, LOOP
+	 SUB R5, R5, #4
+	 BNEZ R5, LOOP
