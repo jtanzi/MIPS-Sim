@@ -145,45 +145,37 @@ def parse_ins(ins_string, ins_num, branch_ref):
 
 	return instruction, branch_ref	
 
-#Hazard checking
 
-def RAW_hazard_check(rs, rt, ID_EX_reg):
-	
-	if rs == ID_EX_reg.dest or rt == ID_EX_reg.dest:
-		return True
-	else:
-		return False
-
-def WAW_hazard_check(dest, ID_EX_reg):
-	
-	if dest == ID_EX_reg.dest:
-		return True
-	else:
-		return False
 
 
 #---------------Pipeline Stages-----------------
 
 #Instruction Fetch (IF1 & IF2)
 def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag, stall_flag, prev_branch, inst_count):
-			
+	
+	print str('len(IMEM) = ' + str(len(IMEM)))
+	print str('branch_flag = ' + str(branch_flag))
+
 	if branch_flag:
 		IR = Ins(0, 'NOP', 'NULL', 'NULL', 'NULL', 0)
 		IF1_message = ''
 		branch_flag = False
 		prev_branch = True
 		last_inst_read_flag = False
-	elif (PC/4 <= last_ins_num - 1) and not prev_branch:
+	elif (PC/4 < len(IMEM)) and not prev_branch:
 		IR = IMEM[PC/4]
-		inst_count += 1		
+		
 		if stall_flag:
 			IF1_message = ''
-		else:	
+		else:
+			inst_count += 1
+			IR.ins_num = inst_count	
 			IF1_message = str('I' + str(IR.ins_num) + '-' + 'IF1' + ' ')
 	elif prev_branch:
-		if (PC/4 <= last_ins_num -1):
+		if (PC/4 <= len(IMEM)):
 			IR = IMEM[PC/4]
 			inst_count += 1
+			IR.ins_num = inst_count
 		IF1_message = str('I' + str(IR.ins_num) + '-' + 'IF1' + ' ')
 		last_inst_read_flag = False
 		prev_branch = False
@@ -208,8 +200,8 @@ def IF2(inst, PC, NPC, stall_flag, branch_flag):
 	
 	if branch_flag:
 		#inst.flush()
+		IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
 		inst =  Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-		IF2_message = ''
 	elif stall_flag:
 		if inst.ins_num != 0:
 			IF2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
@@ -241,8 +233,8 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 
 	if branch_flag:
 		#inst.flush()
+		ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
 		inst = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
-		ID_message = ''
 
 	elif stall_flag:
 		if inst.ins_num != 0:
@@ -415,9 +407,9 @@ def MEM3(inst, ALU_Output):
 
 
 #Write Back (WB)
-def WB(inst, last_ins_num, last_inst_write_back, last_inst_read_flag, ALU_Output, LMD, REG):
+def WB(inst, inst_count, last_inst_write_back, last_inst_read_flag, ALU_Output, LMD, REG):
 	
-	if inst.ins_num == last_ins_num and last_inst_read_flag:
+	if inst.ins_num == inst_count and last_inst_read_flag:
 		last_inst_write_back = True
 
 	if inst.opcode == 'NOP':
@@ -573,6 +565,7 @@ while True:
 		#print branch_labels
 
 		next_inst, branch_ref = parse_ins(a, ins_num, branch_ref)
+		print branch_ref
 		IMEM.append(next_inst)
 
 		#Increment counters
@@ -588,7 +581,8 @@ while True:
 
 	run_count = 0	
 	
-	while not last_inst_write_back and run_count < 20:
+	#MIPS Operation Loop - Main Program
+	while not last_inst_write_back and run_count < 100:
 
 		run_count += 1
 
@@ -597,11 +591,9 @@ while True:
 		print '************'
 
 		log_str = str('c#' + str(sim_cycle) +  ' ')
-	
-
 
 		#Write Back Stage
-		WB_message, last_inst_write_back, REG = WB(MEM3_WB_reg, last_ins_num, 
+		WB_message, last_inst_write_back, REG = WB(MEM3_WB_reg, inst_count, 
 			last_inst_write_back, last_inst_read_flag, ALU_Output_3, LMD, REG)
 
 		#MEM3 Stage
@@ -638,8 +630,6 @@ while True:
 			#REG[int(re.sub("[^0-9]", " ", ID_EX_reg.scr2))] = LMD
 			#REG_ready[int(re.sub("[^0-9]", " ", ID_EX_reg.scr2))] = True
 
-		print str('stall_scr2 bef = ' + stall_scr2)
-		print str('MEM1_MEM2_reg.scr2 = ' + MEM1_MEM2_reg.scr2)	
 		#Hazard Check
 		if (EX_MEM1_reg.scr2 == ID_EX_reg.scr1 or 
 			EX_MEM1_reg.scr2 == ID_EX_reg.scr2) and (EX_MEM1_reg.opcode == 'LD'):
