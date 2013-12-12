@@ -140,7 +140,7 @@ def parse_ins(ins_string, ins_num, branch_ref):
 	elif ins_string[0] == 'BNEZ':
 		imm = 0
 		scr1 = ins_string[1]
-		branch_ref[ins_num] = ins_string[2]
+		branch_ref = ins_string[2]
 		instruction = Ins(ins_num, 'BNEZ', scr1, 'NULL', 'NULL', imm)
 
 	return instruction, branch_ref	
@@ -246,7 +246,7 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 		ID_message = ''		
 	else:
 		if inst.opcode == 'BNEZ':
-			imm = int(branch_labels[str(branch_ref[inst.ins_num] + ':')])
+			imm = int(branch_labels[str(branch_ref + ':')])
 			inst.imm = imm
 
 		ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
@@ -463,7 +463,7 @@ while True:
 	sim_cycle = 1
 	branch_flag = False
 	branch_labels = dict()
-	branch_ref = dict()
+	branch_ref = ''
 	stall_flag = False
 	stall_scr2 = ''
 	prev_branch = False
@@ -563,9 +563,9 @@ while True:
 					del a[a.index('')]
 
 		#print branch_labels
-
+		print branch_labels
 		next_inst, branch_ref = parse_ins(a, ins_num, branch_ref)
-		print branch_ref
+
 		IMEM.append(next_inst)
 
 		#Increment counters

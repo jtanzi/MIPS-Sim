@@ -57,23 +57,26 @@ class Ins(object):
 		self.scr2 = 'NULL'
 		self.dest = 'NULL'
 		self.imm = 0
+		self.ins_count = 0
 
-	def __init__(self, ins_num, opcode, scr1, scr2, dest, imm):
+	def __init__(self, ins_num, opcode, scr1, scr2, dest, imm, ins_count = 0):
 		self.ins_num = ins_num
 		self.opcode = opcode
 		self.scr1 = scr1
 		self.scr2 = scr2
 		self.dest = dest
 		self.imm = imm
+		self.ins_count = ins_count
 
 	def write(self, ins_num, opcode, scr1 = 'NULL', scr2 = 'NULL', 
-				dest = 'NULL', imm = 0):
+				dest = 'NULL', imm = 0, ins_count = 0):
 		self.ins_num = ins_num
 		self.opcode = opcode
 		self.scr1 = scr1
 		self.scr2 = scr2
 		self.dest = dest
 		self.imm = imm
+		self.ins_count = ins_count
 
 	def flush(self):
 		self.opcode = 'NOP'
@@ -81,6 +84,7 @@ class Ins(object):
 		self.scr2 = 'NULL'
 		self.dest = 'NULL'
 		self.imm = 0
+		self.ins_count = 0
 
 
 #[VAR LOCATION]
@@ -140,7 +144,7 @@ def parse_ins(ins_string, ins_num, branch_ref):
 	elif ins_string[0] == 'BNEZ':
 		imm = 0
 		scr1 = ins_string[1]
-		branch_ref = ins_string[2]
+		branch_ref[ins_num] = ins_string[2]
 		instruction = Ins(ins_num, 'BNEZ', scr1, 'NULL', 'NULL', imm)
 
 	return instruction, branch_ref	
@@ -162,21 +166,21 @@ def IF1(PC, IR, last_ins_num, last_inst_read_flag, branch_flag, stall_flag, prev
 		branch_flag = False
 		prev_branch = True
 		last_inst_read_flag = False
-	elif (PC/4 < len(IMEM)) and not prev_branch:
+	elif (PC/4 < last_ins_num - 1) and not prev_branch:
 		IR = IMEM[PC/4]
 		
 		if stall_flag:
 			IF1_message = ''
 		else:
 			inst_count += 1
-			IR.ins_num = inst_count	
-			IF1_message = str('I' + str(IR.ins_num) + '-' + 'IF1' + ' ')
+			IR.ins_count = inst_count	
+			IF1_message = str('I' + str(IR.ins_count) + '-' + 'IF1' + ' ')
 	elif prev_branch:
-		if (PC/4 <= len(IMEM)):
+		if (PC/4 <= last_ins_num - 1):
 			IR = IMEM[PC/4]
 			inst_count += 1
 			IR.ins_num = inst_count
-		IF1_message = str('I' + str(IR.ins_num) + '-' + 'IF1' + ' ')
+		IF1_message = str('I' + str(IR.ins_count) + '-' + 'IF1' + ' ')
 		last_inst_read_flag = False
 		prev_branch = False
 	else:  #Last instruction read
@@ -200,11 +204,11 @@ def IF2(inst, PC, NPC, stall_flag, branch_flag):
 	
 	if branch_flag:
 		#inst.flush()
-		IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
+		IF2_message = str('I' + str(inst.ins_count) + '-' + 'IF2' + ' ')
 		inst =  Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 	elif stall_flag:
 		if inst.ins_num != 0:
-			IF2_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			IF2_message = str('I' + str(inst.ins_count) + '-' + 'Stall' + ' ')
 		else:
 			IF2_message = ''
 	else:
@@ -213,7 +217,7 @@ def IF2(inst, PC, NPC, stall_flag, branch_flag):
 		if inst.opcode == 'NOP':
 			IF2_message = ''
 		else:
-			IF2_message = str('I' + str(inst.ins_num) + '-' + 'IF2' + ' ')
+			IF2_message = str('I' + str(inst.ins_count) + '-' + 'IF2' + ' ')
 
 	#Uncomment for debugging
 	"""
@@ -233,12 +237,12 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 
 	if branch_flag:
 		#inst.flush()
-		ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
+		ID_message = str('I' + str(inst.ins_count) + '-' + 'ID' + ' ')
 		inst = Ins(0,'NOP','NULL', 'NULL', 'NULL', 0)
 
 	elif stall_flag:
 		if inst.ins_num != 0:
-			ID_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			ID_message = str('I' + str(inst.ins_count) + '-' + 'Stall' + ' ')
 		else:
 			ID_message = ''
 		
@@ -246,10 +250,10 @@ def ID(inst, ID_EX_reg, stall_flag, A, B, imm, branch_labels, branch_ref, REG):
 		ID_message = ''		
 	else:
 		if inst.opcode == 'BNEZ':
-			imm = int(branch_labels[str(branch_ref + ':')])
+			imm = int(branch_labels[str(branch_ref[inst.ins_num] + ':')])
 			inst.imm = imm
 
-		ID_message = str('I' + str(inst.ins_num) + '-' + 'ID' + ' ')
+		ID_message = str('I' + str(inst.ins_count) + '-' + 'ID' + ' ')
 
 		#Decode instruction
 		if inst.scr1 != 'NULL':
@@ -283,7 +287,7 @@ def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag, stall_flag, REG_ready):
 
 	if stall_flag:
 		if inst.ins_num != 0:
-			EX_message = str('I' + str(inst.ins_num) + '-' + 'Stall' + ' ')
+			EX_message = str('I' + str(inst.ins_count) + '-' + 'Stall' + ' ')
 		else:
 			EX_message = ''
 	elif branch_flag:
@@ -309,7 +313,7 @@ def EX(inst, NPC, A, B, imm, ALU_Output, branch_flag, stall_flag, REG_ready):
 			REG[int(re.sub("[^0-9]", " ", inst.dest))] = ALU_Output
 			#REG_ready[int(re.sub("[^0-9]", " ", inst.dest))] = True
 
-		EX_message = str('I' + str(inst.ins_num) + '-' + 'EX' + ' ')
+		EX_message = str('I' + str(inst.ins_count) + '-' + 'EX' + ' ')
 
 	#Uncomment for debugging
 	"""
@@ -348,7 +352,7 @@ def MEM1(inst, B, PC, NPC, LMD, ALU_Output, branch_flag, MEM):
 
 		branch_flag = False
 		
-		MEM1_message = str('I' + str(inst.ins_num) + '-' + 'MEM1' + ' ')
+		MEM1_message = str('I' + str(inst.ins_count) + '-' + 'MEM1' + ' ')
 
 	#Uncomment for debugging
 	"""
@@ -372,7 +376,7 @@ def MEM2(inst, ALU_Output):
 	if inst.opcode == 'NOP':
 		MEM2_message = ''
 	else:
-		MEM2_message = str('I' + str(inst.ins_num) + '-' + 'MEM2' + ' ')
+		MEM2_message = str('I' + str(inst.ins_count) + '-' + 'MEM2' + ' ')
 
 	#Uncomment for debugging
 	"""
@@ -391,7 +395,7 @@ def MEM3(inst, ALU_Output):
 	if inst.opcode == 'NOP':
 		MEM3_message = ''
 	else:
-		MEM3_message = str('I' + str(inst.ins_num) + '-' + 'MEM3' + ' ')
+		MEM3_message = str('I' + str(inst.ins_count) + '-' + 'MEM3' + ' ')
 
 	#Uncomment for debugging
 	"""
@@ -409,7 +413,7 @@ def MEM3(inst, ALU_Output):
 #Write Back (WB)
 def WB(inst, inst_count, last_inst_write_back, last_inst_read_flag, ALU_Output, LMD, REG):
 	
-	if inst.ins_num == inst_count and last_inst_read_flag:
+	if last_inst_read_flag:
 		last_inst_write_back = True
 
 	if inst.opcode == 'NOP':
@@ -420,7 +424,7 @@ def WB(inst, inst_count, last_inst_write_back, last_inst_read_flag, ALU_Output, 
 		if inst.opcode == 'LD':
 			REG[int(re.sub("[^0-9]", " ", inst.scr2))] = LMD
 		
-		WB_message = str('I' + str(inst.ins_num) + '-' + 'WB' + ' ')
+		WB_message = str('I' + str(inst.ins_count) + '-' + 'WB' + ' ')
 
 	#Uncomment for debugging
 	"""
@@ -463,7 +467,7 @@ while True:
 	sim_cycle = 1
 	branch_flag = False
 	branch_labels = dict()
-	branch_ref = ''
+	branch_ref = dict()
 	stall_flag = False
 	stall_scr2 = ''
 	prev_branch = False
@@ -563,9 +567,9 @@ while True:
 					del a[a.index('')]
 
 		#print branch_labels
-		print branch_labels
-		next_inst, branch_ref = parse_ins(a, ins_num, branch_ref)
 
+		next_inst, branch_ref = parse_ins(a, ins_num, branch_ref)
+		print branch_ref
 		IMEM.append(next_inst)
 
 		#Increment counters
